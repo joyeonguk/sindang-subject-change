@@ -432,10 +432,12 @@ function call(fn,extra,pw,grade){
       if(timer)clearTimeout(timer);
       var j;try{j=JSON.parse(t)}catch(e){throw new Error('연결 통로가 오류 화면을 돌려줬어요. Apps Script 코드를 붙여 넣은 뒤 「새 버전」으로 배포했는지 확인해 주세요. ('+String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,120)+')')}
       if(!j.ok)throw new Error(j.error==='알 수 없는 요청입니다.'?'Apps Script를 새 버전으로 다시 배포해야 이 기능을 쓸 수 있어요.':(j.error||'요청을 처리하지 못했어요.'));
-      if(fn==='ping'&&(!j.data||!(j.data.version>=API_VERSION)))throw new Error('Apps Script에 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.');
+      if(fn==='ping'){SV=(j.data&&+j.data.version)||0;lsSet('sc.ver',String(SV));
+        if(SV<3)throw new Error('Apps Script에 아주 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.')}
       return j.data});
 }
-var API_VERSION=4;
+var API_VERSION=4,SV=+lsGet('sc.ver','0')||0; // SV: 지금 배포된 연결 통로 버전
+function verNote(){return (!DEMO&&SV&&SV<API_VERSION)?'<div class="info">연결 통로(Apps Script)가 <b>버전 '+SV+'</b>로 배포되어 있어요. 작성·인쇄·접수는 그대로 되고, <b>삭제·되돌리기</b>는 버전 '+API_VERSION+' 코드를 붙여 넣고 「배포 관리 → ✏️ 수정 → 새 버전 → 배포」를 한 뒤에 쓸 수 있어요.</div>':''}
 var Api={
   check:function(pw,grade){return call('ping',{},pw,grade)},
   load:function(){return call('load',{})},
@@ -505,6 +507,7 @@ function findSt(id){for(var i=0;i<D.students.length;i++)if(D.students[i].id===id
 
 function reload(){
   D.loading=true;D.err='';render();
+  if(!DEMO)Api.check(CFG.pw,CFG.grade).then(function(){if(D.loaded)render()},function(){});
   return Store.load().then(function(d){D.students=d.students;D.requests=d.requests;D.loaded=true;D.loading=false;
     if(V.cur){var s=findSt(V.cur.id);V.cur=s;if(s)loadForm(s)}render()})
     .catch(function(e){D.loading=false;D.err=errMsg(e);render()});
@@ -576,7 +579,7 @@ function gateView(){
 /* ════════ 학생 ════════ */
 function kpis(){
   var c={작성:0,처리중:0,접수완료:0};D.requests.forEach(function(r){if(c[r.status]!=null)c[r.status]++});
-  return '<div class="kpis">'
+  return verNote()+'<div class="kpis">'
     +'<div class="panel kpi"><div class="k">전체 학생</div><div class="v">'+D.students.length+'</div></div>'
     +'<div class="panel kpi"><div class="k"><span class="st st-작성">작성</span></div><div class="v">'+c['작성']+'</div></div>'
     +'<div class="panel kpi"><div class="k"><span class="st st-처리중">처리중</span><span class="kx">서명 대기</span></div><div class="v">'+c['처리중']+'</div></div>'
