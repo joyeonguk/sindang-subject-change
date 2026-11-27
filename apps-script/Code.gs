@@ -53,12 +53,28 @@ const MAX_CHANGES = 5;
 const props = PropertiesService.getScriptProperties();
 
 // ───────── 웹앱 진입점 ─────────
-function doGet(e) {
-  const t = HtmlService.createTemplateFromFile('App');
-  t.mode = (e && e.parameter && e.parameter.page === 'teacher') ? 'teacher' : 'student';
-  return t.evaluate()
-    .setTitle('2027 선택과목 변경 신청')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+// 이 웹앱 주소는 GitHub 페이지(index.html)가 데이터를 주고받는 통로입니다.
+function doGet() {
+  return HtmlService.createHtmlOutput('<p style="font-family:sans-serif">선택과목 변경 신청 데이터 연결 주소입니다. 이 주소를 GitHub 저장소의 config.js에 넣어 사용하세요.</p>')
+    .setTitle('선택과목 변경 신청 연결');
+}
+
+// GitHub 페이지 → { fn: '함수 이름', args: [...] } → { ok, data | error }
+function doPost(e) {
+  const API = {
+    getPublicConfig: getPublicConfig, studentLogin: studentLogin, submitRequest: submitRequest, cancelRequest: cancelRequest,
+    teacherState: teacherState, teacherSetup: teacherSetup, teacherLogin: teacherLogin, teacherData: teacherData,
+    teacherDetail: teacherDetail, teacherUpdate: teacherUpdate, teacherSaveSettings: teacherSaveSettings, teacherNewStore: teacherNewStore
+  };
+  let out;
+  try {
+    const req = JSON.parse(e.postData.contents);
+    if (!API[req.fn]) throw new Error('알 수 없는 요청입니다.');
+    out = { ok: true, data: API[req.fn].apply(null, req.args || []) };
+  } catch (err) {
+    out = { ok: false, error: String(err && err.message ? err.message : err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 
 // ───────── 공통 도우미 ─────────

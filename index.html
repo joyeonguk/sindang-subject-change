@@ -175,7 +175,7 @@ table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums}
 </style>
 
 <div class="demo" id="demoBar" hidden>
-  <b>미리보기</b><span>예시 데이터로 동작하며 저장되지 않습니다.</span>
+  <b>미리보기</b><span>아직 학생 시트와 연결되지 않아 예시 데이터로만 동작합니다. 저장되지 않습니다.</span>
   <div class="seg" role="group" aria-label="화면 전환">
     <button type="button" id="demoStudent" aria-pressed="true">학생 화면</button>
     <button type="button" id="demoTeacher" aria-pressed="false">교사 화면</button>
@@ -198,10 +198,12 @@ table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums}
 </div>
 <div id="printArea" hidden></div>
 
+<script src="config.js"></script>
 <script>
-var MODE_RAW = '<?= mode ?>';
-var DEMO = !(window.google && google.script && google.script.run);
-var MODE = DEMO ? 'student' : (MODE_RAW === 'teacher' ? 'teacher' : 'student');
+/* 연결 주소는 config.js의 API_URL. 비어 있거나 주소 뒤에 ?demo 가 붙으면 예시 데이터로 동작 */
+var API_URL = String(window.API_URL || '').trim();
+var DEMO = !API_URL || /[?&]demo\b/.test(location.search);
+var MODE = !DEMO && (/[?&]page=teacher\b/.test(location.search) || location.hash === '#teacher') ? 'teacher' : 'student';
 
 /* ───────── 문구 (안내문 양식1·2 원문) ───────── */
 var AGREE_STUDENT = [
@@ -232,7 +234,11 @@ function api(fn){
   var args=[].slice.call(arguments,1);
   return new Promise(function(res,rej){
     if(DEMO){setTimeout(function(){try{res(Mock[fn].apply(null,args))}catch(e){rej(e)}},300);return}
-    var r=google.script.run.withSuccessHandler(res).withFailureHandler(rej);r[fn].apply(r,args);
+    // 본문을 text/plain으로 보내면 Apps Script가 별도 사전 요청 없이 받습니다.
+    fetch(API_URL,{method:'POST',body:JSON.stringify({fn:fn,args:args})})
+      .then(function(r){return r.json()})
+      .then(function(j){if(j.ok)res(j.data);else rej(new Error(j.error))},
+            function(){rej(new Error('서버에 연결하지 못했습니다. 잠시 후 다시 시도하고, 계속되면 담임선생님께 알려 주세요.'))});
   });
 }
 function errMsg(e){return (e&&e.message?e.message:String(e)).replace(/^Exception:\s*/,'')}
