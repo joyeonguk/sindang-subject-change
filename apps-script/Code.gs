@@ -5,7 +5,7 @@
  * 교사 비밀번호를 확인한 뒤 학년별 과목선택 시트를 읽고 씁니다.
  *
  * 설치 (처음 한 번)
- *  1) 아래 「설정」 세 줄을 채웁니다. (시트 주소의 /d/ 와 /edit 사이 값이 시트 ID)
+ *  1) 아래 「설정」에 학년별 비밀번호와 시트 ID를 채웁니다. (시트 주소의 /d/ 와 /edit 사이 값이 시트 ID)
  *  2) 저장 → 배포 → 새 배포 → 유형: 웹 앱
  *     · 다음 사용자 인증 정보로 실행: 나
  *     · 액세스 권한이 있는 사용자: 모든 사용자
@@ -14,10 +14,10 @@
  */
 
 // ───────── 설정 ─────────
-const TEACHER_PASSWORD = '여기에-교사-공용-비밀번호';
+// 학년마다 담임선생님 비밀번호가 따로 있습니다. 1학년 비밀번호로는 1학년 시트만 열립니다.
 const SHEETS = {
-  '1': { id: '여기에-1학년-시트-ID', tab: '천안신당고등학교 과목선택 DB', n1: 6, n2: 6, sciCol: 16 }, // B~G, H~M, P열 과학중점
-  '2': { id: '여기에-2학년-시트-ID', tab: '2학년 과목선택', n1: 7, n2: 7, sciCol: 0 }            // B~H, I~O
+  '1': { pw: '여기에-1학년-비밀번호', id: '여기에-1학년-시트-ID', tab: '천안신당고등학교 과목선택 DB', n1: 6, n2: 6, sciCol: 16 }, // B~G, H~M, P열 과학중점
+  '2': { pw: '여기에-2학년-비밀번호', id: '여기에-2학년-시트-ID', tab: '2학년 과목선택', n1: 7, n2: 7, sciCol: 0 }            // B~H, I~O
 };
 
 // ───────── 기록 탭 ─────────
@@ -35,7 +35,9 @@ function doPost(e) {
   let out;
   try {
     const q = JSON.parse(e.postData.contents);
-    if (String(q.pw || '') !== TEACHER_PASSWORD) throw new Error('교사 비밀번호가 맞지 않습니다.');
+    const g = SHEETS[String(q.grade)];
+    if (!g) throw new Error('학년을 골라 주세요.');
+    if (String(q.pw || '') !== String(g.pw)) throw new Error(q.grade + '학년 담임교사 비밀번호가 맞지 않습니다.');
     const fn = { ping: ping, load: load, save: save, apply: apply }[q.fn];
     if (!fn) throw new Error('알 수 없는 요청입니다.');
     out = { ok: true, data: fn(q) };

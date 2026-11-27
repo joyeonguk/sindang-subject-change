@@ -325,7 +325,8 @@ function summary(r){return (r.changes||[]).map(function(c){return c.sem+'학기 
 /* ════════ 설정 ════════ */
 var API_URL=String(window.API_URL||'').trim();
 var DEMO=!API_URL||/[?&]demo\b/.test(location.search);
-var CFG={grade:lsGet('sc.grade',''),teacher:lsGet('sc.teacher',''),pw:lsGet('sc.pw','')};
+var CFG={grade:lsGet('sc.grade',''),teacher:lsGet('sc.teacher','')};
+CFG.pw=CFG.grade?lsGet('sc.pw'+CFG.grade,''):'';
 if(!PROFILES[CFG.grade])CFG.grade='';
 CFG.auth=!!(CFG.grade&&CFG.teacher&&(CFG.pw||DEMO));
 var P=PROFILES[CFG.grade||'1'],SUBJ=P.subj,LAST=colL(P.n1+P.n2);
@@ -418,7 +419,7 @@ function renderNav(){
     :'<span class="dot '+(DEMO?'demo':D.loaded?'on':'')+'"></span><span class="small"><b style="font-weight:500">'+esc(CFG.teacher)+'</b> 선생님 · '+CFG.grade+'학년 담임교사'+(DEMO?' · 미리보기':'')+'</span>'
       +'<button class="btn ghost small" type="button" id="btnReload">새로고침</button><button class="btn ghost small" type="button" id="btnSwitch">학년 바꾸기</button>';
   var r=$('#btnReload');if(r)r.addEventListener('click',reload);
-  var w=$('#btnSwitch');if(w)w.addEventListener('click',function(){lsSet('sc.grade','');location.reload()});
+  var w=$('#btnSwitch');if(w)w.addEventListener('click',function(){lsSet('sc.lastGrade',CFG.grade==='1'?'2':'1');lsSet('sc.grade','');location.reload()});
 }
 /** 레퍼런스의 반원 시계 자리: 접수 완료 / 전체 신청 */
 function renderDial(){
@@ -434,7 +435,7 @@ function render(){
   if(V.tab==='settings')return settingsView();
   if(!CFG.auth)return gateView();
   if(D.err&&!D.loaded){page.innerHTML='<div class="panel"><div class="empty"><b>시트를 불러오지 못했어요</b><span>'+esc(D.err)+'</span><div class="row"><button class="btn primary" type="button" id="retry">다시 시도</button><button class="btn" type="button" id="relogin">다시 들어가기</button></div></div></div>';
-    $('#retry').addEventListener('click',reload);$('#relogin').addEventListener('click',function(){lsSet('sc.pw','');lsSet('sc.grade','');location.reload()});return}
+    $('#retry').addEventListener('click',reload);$('#relogin').addEventListener('click',function(){lsSet('sc.pw1','');lsSet('sc.pw2','');lsSet('sc.grade','');location.reload()});return}
   if(!D.loaded){page.innerHTML='<div class="panel"><div class="empty"><b>'+CFG.grade+'학년 과목선택 시트를 불러오는 중…</b><span>학생 수가 많으면 몇 초 걸릴 수 있어요.</span></div></div>';return}
   if(V.tab==='students')return studentsView();
   if(V.tab==='requests')return requestsView();
@@ -442,26 +443,26 @@ function render(){
 }
 
 /* ════════ 첫 화면 ════════ */
-var G={grade:lsGet('sc.lastGrade','1'),err:'',busy:false,name:lsGet('sc.teacher',''),pw:lsGet('sc.pw','')};
+var G={grade:lsGet('sc.lastGrade','1'),err:'',busy:false,name:lsGet('sc.teacher','')};G.pw=lsGet('sc.pw'+G.grade,'');
 function gateView(){
   var card=function(g){var pr=PROFILES[g];return '<button type="button" class="gcard" data-g="'+g+'" aria-pressed="'+(G.grade===g)+'"><span class="gt">'+g+'학년 담임교사</span><span class="gs">'+esc(pr.label)+'</span></button>'};
   page.innerHTML='<section class="gate"><div class="gate-h"><div class="eyebrow">들어가기</div><h2>어느 학년 담임이신가요?</h2></div>'
     +'<div class="gcards">'+card('1')+card('2')+'</div>'
     +'<form class="gform" id="gform" autocomplete="on"><label class="f">선생님 성함<input type="text" id="gName" value="'+esc(G.name)+'" placeholder="예: 김신당" autocomplete="name"></label>'
-    +'<label class="f">교사 비밀번호'+(DEMO?' <span class="muted">(미리보기는 아무 값이나)</span>':'')+'<input type="password" id="gPw" value="'+esc(G.pw)+'" autocomplete="current-password"></label>'
+    +'<label class="f">'+G.grade+'학년 담임교사 비밀번호'+(DEMO?' <span class="muted">(미리보기는 아무 값이나)</span>':'')+'<input type="password" id="gPw" value="'+esc(G.pw)+'" autocomplete="current-password"></label>'
     +(G.err?'<div class="err" role="alert">'+esc(G.err)+'</div>':'')
     +'<button class="btn primary lg" type="submit"'+(G.busy?' disabled':'')+'>'+(G.busy?'확인 중…':G.grade+'학년 담임선생님 입장')+'</button>'
     +'</form></section>';
   var keepIn=function(){G.name=$('#gName').value;G.pw=$('#gPw').value};
   $('#gName').addEventListener('input',keepIn);$('#gPw').addEventListener('input',keepIn);
-  $$('.gcard').forEach(function(b){b.addEventListener('click',function(){keepIn();G.grade=b.getAttribute('data-g');G.err='';gateView()})});
+  $$('.gcard').forEach(function(b){b.addEventListener('click',function(){keepIn();G.grade=b.getAttribute('data-g');G.pw=lsGet('sc.pw'+G.grade,'');G.err='';gateView()})});
   $('#gform').addEventListener('submit',function(e){e.preventDefault();
     keepIn();var nm=G.name.trim(),pw=G.pw;
     if(!nm){G.err='선생님 성함을 입력해 주세요.';return gateView()}
-    if(!pw&&!DEMO){G.err='교사 비밀번호를 입력해 주세요.';return gateView()}
+    if(!pw&&!DEMO){G.err=G.grade+'학년 담임교사 비밀번호를 입력해 주세요.';return gateView()}
     G.busy=true;G.err='';gateView();
     (DEMO?Promise.resolve():Api.check(pw,G.grade)).then(function(){
-      lsSet('sc.teacher',nm);lsSet('sc.pw',pw);lsSet('sc.grade',G.grade);lsSet('sc.lastGrade',G.grade);location.reload();
+      lsSet('sc.teacher',nm);lsSet('sc.pw'+G.grade,pw);lsSet('sc.grade',G.grade);lsSet('sc.lastGrade',G.grade);location.reload();
     }).catch(function(err){G.busy=false;G.err=errMsg(err);gateView()});
   });
 }
@@ -708,11 +709,11 @@ function settingsView(){
     +'<div class="info">「이 기기에서 나가기」를 누르면 저장된 비밀번호가 지워집니다. 공용 컴퓨터에서 쓰셨다면 눌러 주세요.</div></div></section>'
     +'<section class="panel"><div class="panel-h"><h2>관리 선생님용 안내</h2></div><div class="panel-b"><ol class="steps">'
     +'<li>모든 기록은 각 학년 스프레드시트의 「'+LOG_SHEET+'」 탭에 남습니다. 작성·출력·접수한 선생님 성함과 일시, 바뀌기 전 과목이 함께 기록됩니다.</li>'
-    +'<li>교사 비밀번호를 바꾸려면 Apps Script의 <code>TEACHER_PASSWORD</code> 한 줄을 고치고 <b>배포 관리 → 수정 → 새 버전</b>으로 다시 배포합니다. 주소는 바뀌지 않습니다.</li>'
+    +'<li>학년별 비밀번호를 바꾸려면 Apps Script의 <code>SHEETS</code>에서 그 학년의 <code>pw</code> 값을 고치고 <b>배포 관리 → 수정 → 새 버전</b>으로 다시 배포합니다. 주소는 바뀌지 않습니다.</li>'
     +'<li>시트 공유는 「제한됨」으로 두어도 됩니다. 이 페이지는 연결 통로를 거쳐 시트를 읽고 씁니다.</li></ol></div></section>';
-  $('#sSwitch').addEventListener('click',function(){lsSet('sc.grade',CFG.grade==='1'?'2':'1');location.reload()});
+  $('#sSwitch').addEventListener('click',function(){var g=CFG.grade==='1'?'2':'1';lsSet('sc.lastGrade',g);lsSet('sc.grade',lsGet('sc.pw'+g,'')?g:'');location.reload()});
   $('#sName').addEventListener('click',function(){lsSet('sc.grade','');lsSet('sc.lastGrade',CFG.grade);location.reload()});
-  $('#sOut').addEventListener('click',function(){lsSet('sc.pw','');lsSet('sc.grade','');location.reload()});
+  $('#sOut').addEventListener('click',function(){lsSet('sc.pw1','');lsSet('sc.pw2','');lsSet('sc.grade','');location.reload()});
 }
 
 /* ════════ 인쇄 양식 ════════ */
