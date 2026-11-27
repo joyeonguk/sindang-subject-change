@@ -286,6 +286,13 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
 @media print{.xmas-scene,.sky-deco{display:none!important}}
 @media (max-width:640px){.arch{height:290px!important}.arch::before{top:42%}.sky-deco{height:42%}.sky-deco .sleigh{width:28%;top:26%}.sky-deco .moon{width:18px;height:18px;top:16%}}
 
+/* 유튜브 미니 플레이어 */
+.yt-box{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:24;width:200px;height:113px;
+  border-radius:10px;overflow:hidden;background:#000;box-shadow:0 10px 26px -10px rgba(60,45,30,.55)}
+.yt-box iframe{width:200px;height:113px;display:block;border:0}
+@media print{.yt-box{display:none!important}}
+@media (max-width:640px){body.authed .yt-box{bottom:calc(120px + env(safe-area-inset-bottom,0px));right:12px}}
+
 /* 음악 버튼 */
 .music-btn{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:25;
   height:44px;min-width:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);
@@ -1159,7 +1166,7 @@ function printPapers(list){
 /* ════════ 배경 음악: 「징글벨」(1857, 저작권 만료) 재즈 스윙 편곡 — Web Audio로 직접 연주, 음원 파일 없음 ════════
    비브라폰 멜로디 · 로즈 피아노 화음 · 워킹 베이스 · 브러시 드럼 · 썰매 방울 · 리버브
    브라우저는 사람이 한 번 누르기 전에는 소리를 막으므로, 첫 클릭·입력 때 바로 시작합니다. */
-var Music=(function(){
+var Synth=(function(){ // 유튜브를 쓸 수 없을 때 대신 나오는 징글벨 재즈
   var ac=null,out=null,dry=null,wet=null,on=false,timer=null,loopStart=0,loopN=0,noiseBuf=null;
   var BPM=112,B=60/BPM,BAR=4*B;
   function hz(m){return 440*Math.pow(2,(m-69)/12)}
@@ -1256,11 +1263,49 @@ var Music=(function(){
   }
   return {start:start,stop:stop,playing:function(){return on}};
 })();
+
+/* ════════ 배경 음악: 유튜브 노래 (공식 플레이어) ════════
+   재생 중에는 오른쪽 아래에 작은 플레이어가 보입니다(유튜브 이용 규칙). 영상을 쓸 수 없으면 징글벨 재즈로 대신합니다. */
+var YT_VIDEO='Bpd0uiAkbBU';
+var Music=(function(){
+  var player=null,ready=false,on=false,useSynth=false,want=false,box=null,api={onchange:null};
+  function notify(){if(api.onchange)api.onchange()}
+  function toSynth(){useSynth=true;if(box)box.hidden=true;if(want)Synth.start().then(function(){on=Synth.playing();notify()})}
+  function mount(){
+    box=document.createElement('div');box.className='yt-box';box.hidden=true;box.innerHTML='<div id="ytPlayer"></div>';document.body.appendChild(box);
+    window.onYouTubeIframeAPIReady=function(){
+      player=new YT.Player('ytPlayer',{width:200,height:113,videoId:YT_VIDEO,
+        playerVars:{autoplay:0,controls:1,loop:1,playlist:YT_VIDEO,playsinline:1,rel:0,modestbranding:1},
+        events:{
+          onReady:function(){ready=true;if(want)play()},
+          onError:function(){toSynth()},
+          onStateChange:function(e){on=(e.data===1||e.data===3);if(e.data===1)box.hidden=false;notify()}
+        }});
+    };
+    var sc=document.createElement('script');sc.src='https://www.youtube.com/iframe_api';sc.onerror=toSynth;document.head.appendChild(sc);
+    setTimeout(function(){if(!ready&&!useSynth)toSynth()},10000); // 학교망에서 유튜브가 막힌 경우
+  }
+  function play(){
+    want=true;
+    if(useSynth)return Synth.start().then(function(ok){on=ok;notify();return ok});
+    if(!ready)return Promise.resolve(false);
+    box.hidden=false;try{player.unMute();player.setVolume(55);player.playVideo()}catch(e){toSynth()}
+    return Promise.resolve(true);
+  }
+  function stop(){
+    want=false;on=false;
+    if(useSynth)Synth.stop();else if(ready){try{player.pauseVideo()}catch(e){}}
+    if(box)box.hidden=true;notify();
+  }
+  mount();
+  api.start=play;api.stop=stop;api.playing=function(){return useSynth?Synth.playing():(on||want&&!ready)};
+  return api;
+})();
 (function(){
   var btn=document.createElement('button');btn.type='button';btn.className='music-btn';document.body.appendChild(btn);
   function paint(){var p=Music.playing();document.body.classList.toggle('music-on',p);btn.setAttribute('aria-pressed',p);btn.setAttribute('aria-label',p?'음악 끄기':'음악 켜기');btn.title=p?'크리스마스 재즈 끄기':'크리스마스 재즈 켜기';
     btn.innerHTML='<span aria-hidden="true">♪</span>'+(p?'<i></i><i></i><i></i>':'<small>음악</small>')}
-  paint();
+  paint();Music.onchange=paint;
   btn.addEventListener('click',function(e){e.stopPropagation();
     if(Music.playing()){Music.stop();lsSet('sc.music','off');paint()}
     else{lsSet('sc.music','on');Music.start().then(paint)}});
