@@ -1,14 +1,15 @@
 /**
- * 2027학년도 선택과목 변경 신청 (천안신당고등학교 교육과정부)
- * Google Apps Script 웹앱 - 서버 코드
+ * 2027학년도 선택과목 변경 신청 (천안신당고등학교 교육과정부) - 현 1학년(2027 2학년 과정)
+ * Google Apps Script 웹앱 : GitHub 페이지(index.html)가 부르는 데이터 연결 통로
  *
- * 구성
- *  - 학생 화면 : 배포 URL                (학번·이름·비밀번호로 로그인 → 확인서 + 신청서 작성·제출)
- *  - 교사 화면 : 배포 URL + ?page=teacher (저장소 만들기, 신청 목록, 양식 출력, 상태 처리, 과목별 인원 변동)
- *
- * 데이터
- *  - 과목선택 DB(기존 시트, 읽기 전용) : A열 "학번 이름", B~G 1학기 6과목, H~M 2학기 6과목, O열 비밀번호, P열 과학중점
- *  - 변경신청 저장소(교사 화면에서 새로 만드는 스프레드시트) : '변경신청' 시트에 1인 1행
+ * 데이터 흐름
+ *  1) 과목선택 DB(기존 시트, 읽기 전용)
+ *     A열 "학번 이름" · B~G 1학기 6과목 · H~M 2학기 6과목 · O열 비밀번호 · P열 과학중점
+ *  2) 저장소(교사 화면에서 새로 만드는 스프레드시트)
+ *     - '학생명단' 시트 : DB를 가져와 학번 / 학년 / 반 / 번호 / 이름 / 과목을 칸별로 나눠 저장
+ *     - '변경신청' 시트 : 학생 신청 1인 1행
+ *  학생 로그인과 과목별 인원 집계는 '학생명단' 시트를 기준으로 합니다.
+ *  DB가 바뀌면 교사 화면 > 저장소·설정 > 「과목선택 DB 다시 가져오기」를 누릅니다.
  */
 
 // ───────── 과목선택 DB 열 위치 (0부터 시작) ─────────
@@ -42,6 +43,14 @@ const SUBJECTS = {
   ]
 };
 
+// ───────── 저장소 시트 구성 ─────────
+const ROSTER_SHEET = '학생명단';
+const ROSTER_HEAD = ['학번', '학년', '반', '번호', '이름',
+  '1학기 과목1', '1학기 과목2', '1학기 과목3', '1학기 과목4', '1학기 과목5', '1학기 과목6',
+  '2학기 과목1', '2학기 과목2', '2학기 과목3', '2학기 과목4', '2학기 과목5', '2학기 과목6',
+  '과학중점(DB)', '비밀번호'];
+const R = { ID: 0, GRADE: 1, CLS: 2, NO: 3, NAME: 4, SEM1: 5, SEM2: 11, SCIENCE: 17, PW: 18 };
+
 const STORE_SHEET = '변경신청';
 const HEAD = ['접수일시', '학번', '이름', '과학중점 희망', '체육특성화 희망',
   '확인서(학생)', '확인서(학부모)', '변경내역', '변경내역(JSON)', '변경사유',
@@ -53,7 +62,6 @@ const MAX_CHANGES = 5;
 const props = PropertiesService.getScriptProperties();
 
 // ───────── 웹앱 진입점 ─────────
-// 이 웹앱 주소는 GitHub 페이지(index.html)가 데이터를 주고받는 통로입니다.
 function doGet() {
   return HtmlService.createHtmlOutput('<p style="font-family:sans-serif">선택과목 변경 신청 데이터 연결 주소입니다. 이 주소를 GitHub 저장소의 config.js에 넣어 사용하세요.</p>')
     .setTitle('선택과목 변경 신청 연결');
@@ -64,7 +72,8 @@ function doPost(e) {
   const API = {
     getPublicConfig: getPublicConfig, studentLogin: studentLogin, submitRequest: submitRequest, cancelRequest: cancelRequest,
     teacherState: teacherState, teacherSetup: teacherSetup, teacherLogin: teacherLogin, teacherData: teacherData,
-    teacherDetail: teacherDetail, teacherUpdate: teacherUpdate, teacherSaveSettings: teacherSaveSettings, teacherNewStore: teacherNewStore
+    teacherDetail: teacherDetail, teacherUpdate: teacherUpdate, teacherSaveSettings: teacherSaveSettings,
+    teacherNewStore: teacherNewStore, teacherImport: teacherImport, teacherDetails: teacherDetails
   };
   let out;
   try {
@@ -82,6 +91,7 @@ function norm_(s) {
   return String(s || '').replace(/\*/g, '').replace(/\s+/g, '')
     .replace(/III$/, 'Ⅲ').replace(/II$/, 'Ⅱ').replace(/I$/, 'Ⅰ');
 }
+function nameKey_(s) { return String(s || '').replace(/\s+/g, '').toLowerCase(); }
 function hash_(pw) {
   const salt = props.getProperty('SALT') || '';
   const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + String(pw), Utilities.Charset.UTF_8);
@@ -91,7 +101,8 @@ function cfg_() {
   return {
     dbId: props.getProperty('DB_ID'), dbSheet: props.getProperty('DB_SHEET'),
     storeId: props.getProperty('STORE_ID'), start: props.getProperty('START') || '', end: props.getProperty('END') || '',
-    configured: !!props.getProperty('TEACHER_PW')
+    configured: !!props.getProperty('TEACHER_PW'),
+    importedAt: props.getProperty('IMPORTED_AT') || '', importedN: Number(props.getProperty('IMPORTED_N') || 0)
   };
 }
 function today_() { return Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'); }
@@ -106,15 +117,72 @@ function idFromUrl_(s) {
   const m = String(s || '').match(/\/d\/([a-zA-Z0-9_-]{20,})/);
   return m ? m[1] : String(s || '').trim();
 }
-function storeSheet_() {
+function store_() {
   const id = props.getProperty('STORE_ID');
   if (!id) throw new Error('저장소가 아직 없습니다. 교사 화면에서 저장소를 먼저 만들어 주세요.');
-  return SpreadsheetApp.openById(id).getSheetByName(STORE_SHEET);
+  return SpreadsheetApp.openById(id);
 }
+function storeSheet_() { return store_().getSheetByName(STORE_SHEET); }
 function subjectSet_(sem) {
   const m = {};
   SUBJECTS[sem].forEach(function (s) { m[norm_(s[1])] = s; });
   return m;
+}
+
+// ───────── 과목선택 DB → 학생명단 (학번·이름 나누기) ─────────
+/** "10106 김민호" → { id:'10106', name:'김민호' }. 이름에 띄어쓰기가 있으면(예: 영문 이름) 그대로 둡니다. */
+function splitIdName_(cell) {
+  const m = String(cell || '').trim().match(/^(\d{5})\s*(.+)$/);
+  return m ? { id: m[1], name: m[2].trim() } : null;
+}
+
+/** DB 전체를 읽어 저장소의 '학생명단' 시트를 새로 씁니다. 같은 학번이 여러 번 있으면 아래쪽(나중) 행을 씁니다. */
+function importRoster_() {
+  const c = cfg_();
+  const sh = SpreadsheetApp.openById(c.dbId).getSheetByName(c.dbSheet);
+  if (!sh) throw new Error('과목선택 DB에서 「' + c.dbSheet + '」 시트를 찾지 못했습니다.');
+  const v = sh.getDataRange().getDisplayValues();
+  const byId = {}, skipped = [];
+  for (let r = 1; r < v.length; r++) {
+    const row = v[r];
+    if (!String(row[DB_COL.NAME]).trim()) continue;
+    const p = splitIdName_(row[DB_COL.NAME]);
+    if (!p) { skipped.push((r + 1) + '행: 「' + row[DB_COL.NAME] + '」 학번·이름 형식이 아님'); continue; }
+    const sem1 = row.slice(DB_COL.SEM1_FROM, DB_COL.SEM1_FROM + DB_COL.COUNT).map(String);
+    const sem2 = row.slice(DB_COL.SEM2_FROM, DB_COL.SEM2_FROM + DB_COL.COUNT).map(String);
+    const pw = String(row[DB_COL.PW] || '').trim();
+    if (!pw) skipped.push((r + 1) + '행: ' + p.id + ' ' + p.name + ' 비밀번호 없음(로그인 불가)');
+    if (byId[p.id]) skipped.push((r + 1) + '행: ' + p.id + ' 학번 중복, 아래쪽 행으로 덮어씀');
+    byId[p.id] = [p.id, p.id.slice(0, 1), String(Number(p.id.slice(1, 3))), String(Number(p.id.slice(3, 5))), p.name]
+      .concat(sem1, sem2, [row[DB_COL.SCIENCE] || '', pw]);
+  }
+  const rows = Object.keys(byId).sort().map(function (k) { return byId[k]; });
+  const ss = store_();
+  const ro = ss.getSheetByName(ROSTER_SHEET) || ss.insertSheet(ROSTER_SHEET, 0);
+  ro.clear();
+  ro.getRange(1, 1, 1, ROSTER_HEAD.length).setValues([ROSTER_HEAD]).setFontWeight('bold').setBackground('#e8eef6');
+  ro.setFrozenRows(1);
+  ro.getRange(1, 1, Math.max(rows.length, 1) + 1, ROSTER_HEAD.length).setNumberFormat('@'); // 0으로 시작하는 비밀번호 보존
+  if (rows.length) ro.getRange(2, 1, rows.length, ROSTER_HEAD.length).setValues(rows);
+  props.setProperties({ IMPORTED_AT: now_(), IMPORTED_N: String(rows.length) });
+  return { count: rows.length, skipped: skipped, at: props.getProperty('IMPORTED_AT') };
+}
+
+function roster_() {
+  const sh = store_().getSheetByName(ROSTER_SHEET);
+  if (!sh) throw new Error('학생명단이 없습니다. 교사 화면에서 「과목선택 DB 다시 가져오기」를 눌러 주세요.');
+  return sh.getDataRange().getDisplayValues().slice(1).filter(function (r) { return r[R.ID]; });
+}
+function rosterRow_(id) {
+  const rows = roster_();
+  for (let i = 0; i < rows.length; i++) if (rows[i][R.ID] === String(id)) return rows[i];
+  return null;
+}
+function subjectsOf_(row) {
+  return {
+    sem1: row.slice(R.SEM1, R.SEM1 + 6).filter(String),
+    sem2: row.slice(R.SEM2, R.SEM2 + 6).filter(String)
+  };
 }
 
 // ───────── 학생 ─────────
@@ -123,29 +191,22 @@ function getPublicConfig() {
   return { configured: c.configured && !!c.storeId, start: c.start, end: c.end, subjects: SUBJECTS, maxChanges: MAX_CHANGES };
 }
 
-/** 과목선택 DB에서 학생을 찾아 본인 확인. 실패하면 오류. */
+/** 학생명단에서 학번·이름·비밀번호를 확인. 실패하면 오류. */
 function findStudent_(id, name, pw) {
-  id = String(id || '').trim(); name = String(name || '').replace(/\s+/g, ''); pw = String(pw || '').trim();
-  if (!/^\d{5}$/.test(id) || !name || !pw) throw new Error('학번(5자리), 이름, 비밀번호를 모두 입력해 주세요.');
-  const c = cfg_();
-  const sh = SpreadsheetApp.openById(c.dbId).getSheetByName(c.dbSheet);
-  const rows = sh.getDataRange().getDisplayValues();
-  for (let r = 1; r < rows.length; r++) {
-    const key = String(rows[r][DB_COL.NAME]).trim().split(/\s+/);
-    if (key[0] !== id) continue;
-    if (key.slice(1).join('') !== name || String(rows[r][DB_COL.PW]).trim() !== pw) break;
-    return {
-      id: id, name: key.slice(1).join(''),
-      sem1: rows[r].slice(DB_COL.SEM1_FROM, DB_COL.SEM1_FROM + DB_COL.COUNT).filter(String),
-      sem2: rows[r].slice(DB_COL.SEM2_FROM, DB_COL.SEM2_FROM + DB_COL.COUNT).filter(String),
-      science: rows[r][DB_COL.SCIENCE] || ''
-    };
+  id = String(id || '').trim(); pw = String(pw || '').trim();
+  if (!/^\d{5}$/.test(id) || !String(name || '').trim() || !pw) throw new Error('학번(5자리), 이름, 비밀번호를 모두 입력해 주세요.');
+  const row = rosterRow_(id);
+  if (!row || nameKey_(row[R.NAME]) !== nameKey_(name) || String(row[R.PW]).trim() !== pw) {
+    throw new Error('학번, 이름, 비밀번호가 과목선택 때 등록한 정보와 맞지 않습니다. 비밀번호를 잊었다면 담임선생님께 문의하세요.');
   }
-  throw new Error('학번, 이름, 비밀번호가 과목선택 때 등록한 정보와 맞지 않습니다. 비밀번호를 잊었다면 담임선생님께 문의하세요.');
+  const s = subjectsOf_(row);
+  return { id: id, name: row[R.NAME], cls: row[R.CLS], no: row[R.NO], sem1: s.sem1, sem2: s.sem2, science: row[R.SCIENCE] };
 }
 
 function findRequestRow_(sh, id) {
-  const ids = sh.getRange(1, C['학번'] + 1, sh.getLastRow(), 1).getDisplayValues();
+  const n = sh.getLastRow();
+  if (n < 2) return 0;
+  const ids = sh.getRange(1, C['학번'] + 1, n, 1).getDisplayValues();
   for (let r = 1; r < ids.length; r++) if (String(ids[r][0]) === String(id)) return r + 1;
   return 0;
 }
@@ -180,22 +241,20 @@ function submitRequest(id, name, pw, f) {
       const status = sh.getRange(r, C['상태'] + 1).getValue();
       if (status !== '접수') throw new Error('이미 「' + status + '」 단계로 처리 중이라 수정할 수 없습니다. 담임선생님께 문의하세요.');
     }
-    // 확인서 : 모든 문항 '예'
     if (!f.agreeStudent || f.agreeStudent.length !== 6 || f.agreeStudent.some(function (a) { return a !== '예'; }) ||
         !f.agreeParent || f.agreeParent.length !== 5 || f.agreeParent.some(function (a) { return a !== '예'; })) {
       throw new Error('확인서의 모든 문항에 「예」로 답해야 신청할 수 있습니다.');
     }
-    // 변경 내역 검증
     const ch = (f.changes || []).filter(function (c) { return c && c.from && c.to; });
     if (!ch.length) throw new Error('변경할 과목을 1개 이상 입력해 주세요.');
     if (ch.length > MAX_CHANGES) throw new Error('변경은 최대 ' + MAX_CHANGES + '건까지 신청할 수 있습니다.');
     const after = { 1: st.sem1.map(norm_), 2: st.sem2.map(norm_) };
     ch.forEach(function (c) {
-      const sem = Number(c.sem), list = after[sem], avail = subjectSet_(sem);
+      const sem = Number(c.sem), list = after[sem];
       if (!list) throw new Error('학기를 선택해 주세요.');
       const i = list.indexOf(norm_(c.from));
       if (i < 0) throw new Error(sem + '학기 「' + c.from + '」은(는) 기존 선택 과목이 아닙니다.');
-      const s = avail[norm_(c.to)];
+      const s = subjectSet_(sem)[norm_(c.to)];
       if (!s) throw new Error(sem + '학기에 「' + c.to + '」은(는) 개설되지 않습니다.');
       if (s[2] === 'pe' && f.pe !== 'O') throw new Error('「' + c.to + '」은(는) 체육특성화 대상 학생만 선택할 수 있습니다.');
       if (list.indexOf(norm_(c.to)) >= 0) throw new Error(sem + '학기에 「' + c.to + '」이(가) 이미 있습니다.');
@@ -229,13 +288,12 @@ function cancelRequest(id, name, pw) {
 
 // ───────── 교사 ─────────
 function teacherState() {
-  const c = cfg_();
-  return { configured: c.configured };
+  return { configured: cfg_().configured };
 }
 
-/** 처음 한 번 : 교사 비밀번호 설정 + DB 연결 + 저장소(새 스프레드시트) 생성 */
+/** 처음 한 번 : 교사 비밀번호 + DB 연결 + 저장소 생성 + 학생명단 가져오기 */
 function teacherSetup(f) {
-  if (props.getProperty('TEACHER_PW')) throw new Error('이미 설정되어 있습니다. 교사 로그인 후 설정 탭을 이용하세요.');
+  if (props.getProperty('TEACHER_PW')) throw new Error('이미 설정되어 있습니다. 교사 로그인 후 저장소·설정 탭을 이용하세요.');
   if (String(f.pw || '').length < 6) throw new Error('교사 비밀번호는 6자 이상으로 정해 주세요.');
   const dbId = idFromUrl_(f.dbUrl);
   let db;
@@ -245,7 +303,8 @@ function teacherSetup(f) {
   props.setProperty('SALT', Utilities.getUuid());
   props.setProperties({ TEACHER_PW: hash_(f.pw), DB_ID: dbId, DB_SHEET: dbSheet, START: f.start || '', END: f.end || '' });
   const url = createStore_();
-  return { token: newToken_(), storeUrl: url };
+  const imp = importRoster_();
+  return { token: newToken_(), storeUrl: url, imported: imp };
 }
 
 function createStore_() {
@@ -280,22 +339,18 @@ function teacherLogin(pw) {
 function teacherData(token) {
   checkToken_(token);
   const c = cfg_();
-  const sh = storeSheet_();
-  const v = sh.getDataRange().getDisplayValues();
+  const v = storeSheet_().getDataRange().getDisplayValues();
   const list = v.slice(1).filter(function (r) { return r[C['학번']]; }).map(function (r) { return rowToRequest_(r, false); });
-  // 과목별 현재 인원 (DB 기준)
-  const rows = SpreadsheetApp.openById(c.dbId).getSheetByName(c.dbSheet).getDataRange().getDisplayValues().slice(1);
+  const rows = roster_();
   const count = { 1: {}, 2: {} };
   rows.forEach(function (r) {
-    if (!r[DB_COL.NAME]) return;
-    [1, 2].forEach(function (sem) {
-      const from = sem === 1 ? DB_COL.SEM1_FROM : DB_COL.SEM2_FROM;
-      r.slice(from, from + DB_COL.COUNT).forEach(function (s) { if (s) count[sem][norm_(s)] = (count[sem][norm_(s)] || 0) + 1; });
-    });
+    const s = subjectsOf_(r);
+    s.sem1.forEach(function (x) { count[1][norm_(x)] = (count[1][norm_(x)] || 0) + 1; });
+    s.sem2.forEach(function (x) { count[2][norm_(x)] = (count[2][norm_(x)] || 0) + 1; });
   });
   return {
-    list: list, count: count, subjects: SUBJECTS, totalStudents: rows.filter(function (r) { return r[DB_COL.NAME]; }).length,
-    settings: { start: c.start, end: c.end, storeUrl: c.storeId ? SpreadsheetApp.openById(c.storeId).getUrl() : '', dbSheet: c.dbSheet }
+    list: list, count: count, subjects: SUBJECTS, totalStudents: rows.length,
+    settings: { start: c.start, end: c.end, storeUrl: store_().getUrl(), dbSheet: c.dbSheet, importedAt: c.importedAt, importedN: c.importedN }
   };
 }
 
@@ -304,17 +359,22 @@ function teacherDetail(token, id) {
   const sh = storeSheet_(), r = findRequestRow_(sh, id);
   if (!r) throw new Error('신청을 찾을 수 없습니다.');
   const req = rowToRequest_(sh.getRange(r, 1, 1, HEAD.length).getDisplayValues()[0], true);
-  // 기존 과목도 함께
-  const c = cfg_();
-  const rows = SpreadsheetApp.openById(c.dbId).getSheetByName(c.dbSheet).getDataRange().getDisplayValues();
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][DB_COL.NAME]).trim().split(/\s+/)[0] === String(id)) {
-      req.sem1 = rows[i].slice(DB_COL.SEM1_FROM, DB_COL.SEM1_FROM + DB_COL.COUNT).filter(String);
-      req.sem2 = rows[i].slice(DB_COL.SEM2_FROM, DB_COL.SEM2_FROM + DB_COL.COUNT).filter(String);
-      break;
-    }
-  }
+  const row = rosterRow_(id);
+  if (row) { const s = subjectsOf_(row); req.sem1 = s.sem1; req.sem2 = s.sem2; }
   return req;
+}
+
+/** 선택 인쇄용 : 여러 학생의 신청서(서명 포함)를 한 번에 */
+function teacherDetails(token, ids) {
+  checkToken_(token);
+  const sh = storeSheet_(), v = sh.getDataRange().getDisplayValues();
+  const roster = {}; roster_().forEach(function (r) { roster[r[R.ID]] = r; });
+  const want = {}; (ids || []).forEach(function (id) { want[String(id)] = true; });
+  return v.slice(1).filter(function (r) { return want[String(r[C['학번']])]; }).map(function (r) {
+    const q = rowToRequest_(r, true), ro = roster[q.id];
+    if (ro) { const s = subjectsOf_(ro); q.sem1 = s.sem1; q.sem2 = s.sem2; }
+    return q;
+  }).sort(function (a, b) { return a.id < b.id ? -1 : 1; });
 }
 
 function teacherUpdate(token, id, status, memo) {
@@ -337,8 +397,17 @@ function teacherSaveSettings(token, f) {
   return true;
 }
 
-/** 저장소를 지웠거나 새 학기용으로 다시 만들 때 */
+/** 과목선택 DB를 다시 읽어 학생명단을 새로 씁니다(변경신청 기록은 그대로). */
+function teacherImport(token) {
+  checkToken_(token);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try { return importRoster_(); } finally { lock.releaseLock(); }
+}
+
+/** 새 학기용 등으로 저장소를 새로 만들 때 (기존 파일은 드라이브에 남음) */
 function teacherNewStore(token) {
   checkToken_(token);
-  return createStore_();
+  const url = createStore_();
+  importRoster_();
+  return url;
 }
