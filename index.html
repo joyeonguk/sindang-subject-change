@@ -587,10 +587,9 @@ function kpis(){
     +'<div class="panel kpi"><div class="k"><span class="st st-처리중">처리중</span><span class="kx">서명 대기</span></div><div class="v">'+c['처리중']+'</div></div>'
     +'<div class="panel kpi"><div class="k"><span class="st st-접수완료">접수완료</span><span class="kx">시트 반영</span></div><div class="v">'+c['접수완료']+'</div></div></div>';
 }
-function studentsView(){
-  var classes={};D.students.forEach(function(s){classes[clsOf(s.id)]=1});
+function filterRows(){
   var q=V.q.replace(/\s+/g,'').toLowerCase();
-  var rows=D.students.filter(function(s){
+  return D.students.filter(function(s){
     if(V.cls&&clsOf(s.id)!==+V.cls)return false;
     if(q&&(s.id+s.name.replace(/\s+/g,'').toLowerCase()).indexOf(q)<0)return false;
     var st=stOf(s.id);
@@ -599,20 +598,33 @@ function studentsView(){
     if(V.filter==='done')return st==='접수완료';
     return true;
   });
+}
+function listRowsHtml(rows){
+  return rows.map(function(s){var st=stOf(s.id);return '<button type="button" class="srow" data-id="'+s.id+'" aria-current="'+(V.cur&&V.cur.id===s.id)+'"><span class="num muted">'+s.id+'</span><span class="nm">'+esc(s.name)+'</span>'+(st?'<span class="st st-'+st+'">'+st+'</span>':'<span></span>')+'</button>'}).join('')
+    +(rows.length?'':'<div class="empty small">조건에 맞는 학생이 없어요.</div>');
+}
+function bindRows(){$$('.srow').forEach(function(b){b.addEventListener('click',function(){select(findSt(b.getAttribute('data-id')))})})}
+/** 검색어가 바뀔 때는 목록만 다시 그립니다(입력칸을 새로 만들면 한글 조합이 끊깁니다). */
+function refreshList(){
+  var rows=filterRows();$('#slist').innerHTML=listRowsHtml(rows);$('#listFoot').textContent=rows.length+'명 표시 · 시트 행 순서와 관계없이 학번순';bindRows();
+}
+function studentsView(){
+  var classes={};D.students.forEach(function(s){classes[clsOf(s.id)]=1});
+  var rows=filterRows();
   var h=kpis()+'<div class="work'+(V.cur?' has-cur':'')+'"><section class="panel listp" aria-label="학생 목록"><div class="list-tools">'
     +'<div class="row" style="flex-wrap:nowrap"><select id="cls" style="width:130px;flex:none" aria-label="반"><option value="">전체 반</option>'+Object.keys(classes).sort(function(a,b){return a-b}).map(function(c){return '<option value="'+c+'"'+(String(V.cls)===c?' selected':'')+'>'+CFG.grade+'학년 '+c+'반</option>'}).join('')+'</select>'
     +'<input type="search" id="q" placeholder="이름 (또는 학번)" value="'+esc(V.q)+'" aria-label="이름으로 찾기"></div>'
     +'<div class="chips" role="group" aria-label="상태 거르기">'+[['all','전체'],['open','신청 중'],['pending','처리중'],['done','접수완료']].map(function(x){return '<button type="button" data-f="'+x[0]+'" aria-pressed="'+(V.filter===x[0])+'">'+x[1]+'</button>'}).join('')+'</div></div>'
-    +'<div class="slist" id="slist">'+rows.map(function(s){var st=stOf(s.id);return '<button type="button" class="srow" data-id="'+s.id+'" aria-current="'+(V.cur&&V.cur.id===s.id)+'"><span class="num muted">'+s.id+'</span><span class="nm">'+esc(s.name)+'</span>'+(st?'<span class="st st-'+st+'">'+st+'</span>':'<span></span>')+'</button>'}).join('')
-    +(rows.length?'':'<div class="empty small">조건에 맞는 학생이 없어요.</div>')+'</div>'
-    +'<div class="list-foot">'+rows.length+'명 표시 · 시트 행 순서와 관계없이 학번순</div></section>'
+    +'<div class="slist" id="slist">'+listRowsHtml(rows)+'</div>'
+    +'<div class="list-foot" id="listFoot">'+rows.length+'명 표시 · 시트 행 순서와 관계없이 학번순</div></section>'
     +'<section class="panel" aria-label="변경 작업" id="detail">'+detailHtml()+'</section></div>';
   page.innerHTML=h;
-  var qi=$('#q');qi.addEventListener('keydown',function(e){if(e.key==='Enter'&&rows.length){e.preventDefault();select(rows[0])}});
-  qi.addEventListener('input',function(){V.q=qi.value;var p=qi.selectionStart;studentsView();var n=$('#q');n.focus();n.setSelectionRange(p,p)});
+  var qi=$('#q');
+  qi.addEventListener('keydown',function(e){if(e.key!=='Enter')return;e.preventDefault();V.q=qi.value;var r=filterRows();if(r.length)select(r[0])});
+  qi.addEventListener('input',function(){V.q=qi.value;refreshList()});
   $('#cls').addEventListener('change',function(e){V.cls=e.target.value;studentsView()});
   $$('[data-f]').forEach(function(b){b.addEventListener('click',function(){V.filter=b.getAttribute('data-f');studentsView()})});
-  $$('.srow').forEach(function(b){b.addEventListener('click',function(){select(findSt(b.getAttribute('data-id')))})});
+  bindRows();
   bindDetail();
 }
 function select(s){V.cur=s;V.confirm=false;V.edit=false;V.msg='';loadForm(s);studentsView();if(window.innerWidth<900)window.scrollTo(0,$('#detail').getBoundingClientRect().top+window.scrollY-12)}
