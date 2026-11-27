@@ -232,6 +232,22 @@ a{color:var(--ink)}
   padding:11px 20px;border-radius:999px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
 .busy{opacity:.55;pointer-events:none}
 
+/* 시트 보기 */
+iframe.gsheet{width:100%;height:75vh;min-height:480px;border:1px solid var(--line);border-radius:var(--r);background:#fff}
+@media (max-width:640px){iframe.gsheet{height:70vh;min-height:380px}}
+.sheet-wrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.sheet{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
+table.sheet th,table.sheet td{padding:7px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;text-align:left;vertical-align:top}
+table.sheet th{position:sticky;top:0;z-index:2;background:var(--sunk);color:var(--ink-2);font-weight:500;font-size:12px}
+table.sheet .nm{position:sticky;left:0;z-index:1;background:var(--surface);font-weight:500}
+table.sheet th.nm{z-index:3;background:var(--sunk)}
+table.sheet td.n{font-family:var(--f-num);color:var(--ink-3);text-align:right}
+table.sheet td.wrap{white-space:normal;min-width:220px;max-width:340px}
+table.sheet td.chg,.chg-key{background:var(--done-weak);color:var(--done);font-weight:500}
+.chg-key{padding:0 4px;border-radius:2px}
+table.sheet tbody tr:hover td{background:var(--sunk)}
+table.sheet tbody tr:hover td.chg{background:var(--done-weak)}
+
 /* ───── 휴대폰 ───── */
 .mback{display:none}
 @media (max-width:640px){
@@ -436,7 +452,7 @@ function call(fn,extra,pw,grade){
         if(SV<3)throw new Error('Apps Script에 아주 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.')}
       return j.data});
 }
-var API_VERSION=6,SV=+lsGet('sc.ver','0')||0; // SV: 지금 배포된 연결 통로 버전
+var API_VERSION=7,SV=+lsGet('sc.ver','0')||0; // SV: 지금 배포된 연결 통로 버전
 function verNote(){return (!DEMO&&SV&&SV<API_VERSION)?'<div class="info">연결 통로(Apps Script)가 <b>버전 '+SV+'</b>로 배포되어 있어요. 작성·인쇄·접수는 그대로 되고, <b>삭제·되돌리기(접수완료 삭제 시 원래 과목 복구 포함)</b>는 버전 '+API_VERSION+' 코드를 붙여 넣고 「배포 관리 → ✏️ 수정 → 새 버전 → 배포」를 한 뒤에 쓸 수 있어요.</div>':''}
 var Api={
   check:function(pw,grade){return call('ping',{},pw,grade)},
@@ -509,7 +525,7 @@ function findSt(id){for(var i=0;i<D.students.length;i++)if(D.students[i].id===id
 function reload(){
   D.loading=true;D.err='';render();
   if(!DEMO)Api.check(CFG.pw,CFG.grade).then(function(){if(D.loaded)render()},function(){});
-  return Store.load().then(function(d){D.students=d.students;D.requests=d.requests;D.loaded=true;D.loading=false;
+  return Store.load().then(function(d){D.students=d.students;D.requests=d.requests;D.sheet=d.sheet||null;D.loaded=true;D.loading=false;
     if(d.restored&&d.restored.length)toast('시트에서 지운 접수완료 신청 '+d.restored.length+'건: '+d.restored.join(', ')+' 과목을 원래대로 되돌렸어요.');
     if(V.cur){var s=findSt(V.cur.id);V.cur=s;if(s)loadForm(s)}render()})
     .catch(function(e){D.loading=false;D.err=errMsg(e);render()});
@@ -898,6 +914,109 @@ function settingsBody(){
   $('#sSwitch').addEventListener('click',function(){var g=CFG.grade==='1'?'2':'1';lsSet('sc.lastGrade',g);lsSet('sc.grade',lsGet('sc.pw'+g,'')?g:'');location.reload()});
   $('#sName').addEventListener('click',function(){lsSet('sc.grade','');lsSet('sc.lastGrade',CFG.grade);location.reload()});
   $('#sOut').addEventListener('click',function(){lsSet('sc.pw1','');lsSet('sc.pw2','');lsSet('sc.grade','');location.reload()});
+  renderSheetView();
+}
+
+/* ════════ 설정 › 시트 보기 (불러온 시트 데이터를 표로) ════════ */
+var SV_STATE={tab:'gs',gsTab:'db',cls:'',q:''};
+function changedCells(){
+  var m={};
+  D.requests.forEach(function(r){
+    if(r.status!=='접수완료'||!r.after||!r.before)return;
+    var k=m[r.id]=m[r.id]||{};
+    [1,2].forEach(function(sem){var b=r.before['sem'+sem]||[],a=r.after['sem'+sem]||[];a.forEach(function(x,i){if(norm(x)!==norm(b[i]||''))k[sem+'-'+i]=b[i]||''})});
+  });
+  return m;
+}
+function sheetRowsDb(){
+  var q=SV_STATE.q.replace(/\s+/g,'').toLowerCase();
+  return D.students.slice().sort(function(a,b){return a.row-b.row}).filter(function(s){
+    if(SV_STATE.cls&&clsOf(s.id)!==+SV_STATE.cls)return false;
+    return !q||(s.id+s.name.replace(/\s+/g,'').toLowerCase()).indexOf(q)>=0;
+  });
+}
+function sheetRowsLog(){
+  var q=SV_STATE.q.replace(/\s+/g,'').toLowerCase();
+  return D.requests.slice().sort(function(a,b){return a.logRow-b.logRow}).filter(function(r){
+    if(SV_STATE.cls&&clsOf(r.id)!==+SV_STATE.cls)return false;
+    return !q||(r.id+String(r.name).replace(/\s+/g,'').toLowerCase()).indexOf(q)>=0;
+  });
+}
+function sheetEmbedHtml(){
+  if(DEMO)return '<div class="empty small"><b>미리보기에서는 실제 구글 시트를 열 수 없어요</b><span>실제 연결에서는 이 자리에 구글 시트가 그대로 열려 바로 고칠 수 있습니다.</span></div>';
+  if(!D.sheet||!/^https:\/\/docs\.google\.com\//.test(D.sheet.url||''))return '<div class="info">연결 통로(Apps Script)를 <b>버전 '+API_VERSION+'</b>로 배포하면 이 자리에 구글 시트가 그대로 열립니다. 그 전에는 「표로 보기」를 이용해 주세요.</div>';
+  var gid=SV_STATE.gsTab==='log'?D.sheet.logGid:D.sheet.dbGid,base=D.sheet.url.replace(/\/edit.*$/,'');
+  var src=base+'/edit?usp=sharing#gid='+gid;
+  return '<div class="row"><div class="chips" role="group" aria-label="시트 탭">'
+    +'<button type="button" data-gs="db" aria-pressed="'+(SV_STATE.gsTab==='db')+'">'+esc(P.tab)+'</button>'
+    +'<button type="button" data-gs="log" aria-pressed="'+(SV_STATE.gsTab==='log')+'">'+LOG_SHEET+'</button></div>'
+    +'<span class="spacer"></span><a class="btn" href="'+esc(src)+'" target="_blank" rel="noopener">새 창에서 열기 ↗</a></div>'
+    +'<iframe class="gsheet" src="'+esc(src)+'" title="구글 시트 '+esc(SV_STATE.gsTab==='log'?LOG_SHEET:P.tab)+'" loading="lazy"></iframe>'
+    +'<p class="small muted">시트가 안 보이고 로그인 화면이 나오면, 이 브라우저에서 <b>시트 편집 권한이 있는 구글 계정</b>으로 로그인해 주세요. 그래도 안 열리면 「새 창에서 열기」를 눌러 주세요.<br>'
+    +'여기서 직접 고친 내용은 페이지 기록(선생님 성함)에 남지 않습니다. 「'+LOG_SHEET+'」 탭에서 접수완료 줄을 지우면 그 학생 과목은 원래대로 돌아갑니다. 고친 뒤에는 상단 「새로고침」을 눌러 주세요.</p>';
+}
+function sheetTableHtml(){
+  if(!D.loaded)return '<div class="empty small">시트를 아직 불러오지 않았어요. 상단의 「새로고침」을 눌러 주세요.</div>';
+  if(SV_STATE.tab==='gs')return sheetEmbedHtml();
+  var h='';
+  if(SV_STATE.tab==='db'){
+    var rows=sheetRowsDb(),ch=changedCells();
+    h+='<div class="sheet-wrap"><table class="sheet"><thead><tr><th>행</th><th>학번</th><th>반</th><th>번호</th><th class="nm">이름</th>';
+    for(var i=1;i<=P.n1;i++)h+='<th>1학기 '+i+'</th>';
+    for(i=1;i<=P.n2;i++)h+='<th>2학기 '+i+'</th>';
+    if(P.sciCol)h+='<th>과학중점</th>';
+    h+='</tr></thead><tbody>'+rows.map(function(s){
+      var c=ch[s.id]||{},cell=function(sem,i,x){var k=sem+'-'+i;return k in c?'<td class="chg" title="바뀌기 전: '+esc(c[k])+'">'+esc(x)+'</td>':'<td>'+esc(x)+'</td>'};
+      return '<tr><td class="n">'+s.row+'</td><td class="n">'+s.id+'</td><td class="n">'+clsOf(s.id)+'</td><td class="n">'+noOf(s.id)+'</td><td class="nm">'+esc(s.name)+'</td>'
+        +s.raw1.map(function(x,i){return cell(1,i,x)}).join('')+s.raw2.map(function(x,i){return cell(2,i,x)}).join('')
+        +(P.sciCol?'<td>'+esc(s.science)+'</td>':'')+'</tr>';
+    }).join('')+'</tbody></table></div>'
+    +'<p class="small muted">'+rows.length+'명 · 시트 행 순서 · <span class="chg-key">색칠된 칸</span>은 접수완료로 바뀐 과목(마우스를 올리면 바뀌기 전 과목)</p>';
+  }else{
+    var lr=sheetRowsLog();
+    if(!lr.length)return '<div class="empty small">「'+LOG_SHEET+'」 탭에 기록이 없어요.</div>';
+    h+='<div class="sheet-wrap"><table class="sheet"><thead><tr><th>행</th><th>신청번호</th><th>학번</th><th class="nm">이름</th><th>상태</th><th>변경내역</th><th>변경사유</th><th>과학중점</th><th>체육특성화</th><th>신청일</th><th>작성일시</th><th>출력일시</th><th>접수완료일시</th><th>작성 선생님</th><th>출력 선생님</th><th>접수 선생님</th></tr></thead><tbody>'
+      +lr.map(function(r){return '<tr><td class="n">'+r.logRow+'</td><td>'+esc(r.no)+'</td><td class="n">'+r.id+'</td><td class="nm">'+esc(r.name)+'</td><td><span class="st st-'+esc(r.status)+'">'+esc(r.status)+'</span></td>'
+        +'<td class="wrap">'+esc(summary(r)).replace(/\n/g,'<br>')+'</td><td class="wrap">'+esc(r.reason)+'</td><td>'+esc(r.science)+'</td><td>'+esc(r.pe)+'</td><td>'+esc(r.date)+'</td><td>'+esc(r.createdAt)+'</td><td>'+esc(r.printedAt)+'</td><td>'+esc(r.status==='접수완료'?r.doneAt:'')+'</td>'
+        +'<td>'+esc(r.createdBy)+'</td><td>'+esc(r.printedBy)+'</td><td>'+esc(r.doneBy)+'</td></tr>'}).join('')+'</tbody></table></div>'
+      +'<p class="small muted">'+lr.length+'건 · 「'+LOG_SHEET+'」 탭 순서</p>';
+  }
+  return h;
+}
+function sheetCsv(){
+  var q=function(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v},lines=[],name;
+  if(SV_STATE.tab==='db'){
+    var head=['행','학번','반','번호','이름'];for(var i=1;i<=P.n1;i++)head.push('1학기 '+i);for(i=1;i<=P.n2;i++)head.push('2학기 '+i);if(P.sciCol)head.push('과학중점');
+    lines.push(head.join(','));sheetRowsDb().forEach(function(s){lines.push([s.row,s.id,clsOf(s.id),noOf(s.id),s.name].concat(s.raw1,s.raw2,P.sciCol?[s.science]:[]).map(q).join(','))});
+    name=CFG.grade+'학년_과목선택_전체_'+todayStr()+'.csv';
+  }else{
+    lines.push(['행','신청번호','학번','이름','상태','변경내역','변경사유','과학중점','체육특성화','신청일','작성일시','출력일시','접수완료일시','작성 선생님','출력 선생님','접수 선생님'].join(','));
+    sheetRowsLog().forEach(function(r){lines.push([r.logRow,r.no,r.id,r.name,r.status,summary(r).replace(/\n/g,' / '),r.reason,r.science,r.pe,r.date,r.createdAt,r.printedAt,r.status==='접수완료'?r.doneAt:'',r.createdBy,r.printedBy,r.doneBy].map(q).join(','))});
+    name=CFG.grade+'학년_변경신청_기록_'+todayStr()+'.csv';
+  }
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);toast('엑셀(CSV) 파일로 저장했어요.');
+}
+function renderSheetView(){
+  var classes={};D.students.forEach(function(s){classes[clsOf(s.id)]=1});
+  var old=$('#sheetView');if(old)old.remove();
+  page.insertAdjacentHTML('beforeend','<section class="panel" id="sheetView"><div class="panel-h"><h2>시트 보기</h2>'
+    +'<div class="row"><div class="chips" role="group" aria-label="볼 탭">'
+    +'<button type="button" data-sv="gs" aria-pressed="'+(SV_STATE.tab==='gs')+'">구글 시트 (바로 편집)</button>'
+    +'<button type="button" data-sv="db" aria-pressed="'+(SV_STATE.tab==='db')+'">표로 보기 · 학생 과목</button>'
+    +'<button type="button" data-sv="log" aria-pressed="'+(SV_STATE.tab==='log')+'">표로 보기 · '+LOG_SHEET+' '+D.requests.length+'</button></div></div></div>'
+    +'<div class="panel-b"><div class="row"'+(SV_STATE.tab==='gs'?' hidden':'')+'><select id="svCls" style="width:130px;flex:none" aria-label="반"><option value="">전체 반</option>'
+    +Object.keys(classes).sort(function(a,b){return a-b}).map(function(c){return '<option value="'+c+'"'+(String(SV_STATE.cls)===c?' selected':'')+'>'+CFG.grade+'학년 '+c+'반</option>'}).join('')+'</select>'
+    +'<input type="search" id="svQ" placeholder="이름 또는 학번" value="'+esc(SV_STATE.q)+'" style="max-width:240px" aria-label="시트 보기 검색">'
+    +'<span class="spacer"></span><button class="btn" type="button" id="svCsv">이 표 엑셀 저장</button></div>'
+    +'<div id="svBody">'+sheetTableHtml()+'</div>'
+    +(SV_STATE.tab==='gs'?'':'<p class="small muted">표로 보기는 읽기 전용입니다. 학생 비밀번호와 전자서명 칸은 불러오지 않으므로 나오지 않습니다. 최신 내용은 상단 「새로고침」 뒤에 반영됩니다.</p>')+'</div></section>');
+  var body=function(){$('#svBody').innerHTML=sheetTableHtml()};
+  $$('[data-sv]').forEach(function(b){b.addEventListener('click',function(){SV_STATE.tab=b.getAttribute('data-sv');renderSheetView()})});
+  $('#svCls').addEventListener('change',function(e){SV_STATE.cls=e.target.value;body()});
+  $('#svQ').addEventListener('input',function(e){SV_STATE.q=e.target.value;body()});
+  $('#svCsv').addEventListener('click',sheetCsv);
+  $$('[data-gs]').forEach(function(b){b.addEventListener('click',function(){SV_STATE.gsTab=b.getAttribute('data-gs');renderSheetView()})});
 }
 
 /* ════════ 인쇄 양식 ════════ */

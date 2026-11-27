@@ -104,7 +104,7 @@ function fromRow_(v, i) {
 }
 
 // ───────── 요청 ─────────
-const VERSION = 6; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
+const VERSION = 7; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
 function ping(q) { db_(q.grade); return { grade: q.grade, tab: cfg_(q.grade).tab, version: VERSION }; }
 
 /** 학생 전체(학번순)와 변경 기록 */
@@ -131,6 +131,7 @@ function load(q) {
   const lv = ln > 1 ? lg.getRange(2, 1, ln - 1, LOG_HEAD.length).getDisplayValues() : [];
   return {
     restored: restored,
+    sheet: { url: book_(q.grade).getUrl(), dbGid: sh.getSheetId(), logGid: lg.getSheetId() },
     students: Object.keys(byId).sort().map(function (k) { return byId[k]; }),
     requests: lv.map(function (r, i) { return r[0] ? fromRow_(r, i + 2) : null; }).filter(Boolean)
   };
