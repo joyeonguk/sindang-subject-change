@@ -318,15 +318,18 @@ var DEMO=!CFG.clientId||/[?&]demo\b/.test(location.search);
 
 /* ════════ 저장소: 구글 시트 (OAuth) ════════ */
 var Google=(function(){
+  // 로그인 유지: 구글이 준 1시간짜리 열쇠를 이 브라우저에 보관해 다시 열어도 바로 불러옵니다.
   var tok=null,exp=0,client=null;
+  try{var sv=JSON.parse(localStorage.getItem('sc.tok')||'null');if(sv&&sv.e>Date.now()+60000){tok=sv.t;exp=sv.e}}catch(e){}
+  function keep(){try{if(tok)localStorage.setItem('sc.tok',JSON.stringify({t:tok,e:exp}));else localStorage.removeItem('sc.tok')}catch(e){}}
   function auth(force){
     return new Promise(function(res,rej){
       if(!force&&tok&&Date.now()<exp-60000)return res(tok);
       if(!(window.google&&google.accounts&&google.accounts.oauth2))return rej(new Error('구글 로그인 모듈을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.'));
       if(!client)client=google.accounts.oauth2.initTokenClient({client_id:CFG.clientId,scope:'https://www.googleapis.com/auth/spreadsheets',callback:function(){}});
-      client.callback=function(r){if(r.error)return rej(new Error('구글 연결이 취소되었어요.'));tok=r.access_token;exp=Date.now()+(+r.expires_in||3600)*1000;res(tok)};
+      client.callback=function(r){if(r.error)return rej(new Error('구글 연결이 취소되었어요.'));tok=r.access_token;exp=Date.now()+(+r.expires_in||3600)*1000;keep();lsSet('sc.consented','1');res(tok)};
       client.error_callback=function(){rej(new Error('구글 로그인 창이 닫혔거나 팝업이 차단되었어요.'))};
-      client.requestAccessToken({prompt:tok?'':'consent'});
+      client.requestAccessToken({prompt:lsGet('sc.consented','')?'':'consent'});
     });
   }
   function api(path,opt,retry){
@@ -335,7 +338,7 @@ var Google=(function(){
       return fetch('https://sheets.googleapis.com/v4/spreadsheets/'+idFromUrl(CFG.sheetUrl)+path,{method:opt.method||'GET',
         headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},body:opt.body?JSON.stringify(opt.body):undefined});
     }).then(function(r){
-      if(r.status===401&&!retry){tok=null;return api(path,opt,true)}
+      if(r.status===401&&!retry){tok=null;keep();return api(path,opt,true)}
       return r.json().then(function(j){
         if(!r.ok){var m=(j.error&&j.error.message)||r.statusText;
           if(r.status===403)m='이 구글 계정으로는 시트를 열 수 없어요. 시트 소유자 계정으로 연결했는지 확인해 주세요.';
@@ -357,7 +360,8 @@ var Google=(function(){
   }
   return {
     label:function(){return '구글 시트 연결'},
-    connect:function(){return auth(true)},
+    connect:function(){return auth(!(tok&&Date.now()<exp-60000))},
+    hasToken:function(){return !!(tok&&Date.now()<exp-60000)},
     load:function(){
       return ensureLog().then(function(){
         var r=[q(CFG.dbSheet)+'!A2:'+LAST,q(CFG.dbSheet)+'!'+(P.sciCol||'A')+'2:'+(P.sciCol||'A'),q(LOG_SHEET)+'!A2:O'].map(function(x){return 'ranges='+encodeURIComponent(x)}).join('&');
@@ -510,7 +514,7 @@ function render(){
   }
   if(D.err&&!D.loaded){page.innerHTML='<div class="panel"><div class="empty"><b>시트를 불러오지 못했어요</b><span>'+esc(D.err)+'</span><button class="btn primary" type="button" id="retry">다시 시도</button></div></div>';$('#retry').addEventListener('click',function(){Store.connect().then(reload).catch(function(e){D.err=errMsg(e);render()})});return}
   if(!D.loaded){
-    page.innerHTML='<div class="panel"><div class="empty">'+(D.loading?'<b>시트를 불러오는 중…</b>':'<b>과목선택 DB 시트에 연결해 주세요</b><span>상단의 「Google 시트 연결」을 누르면 학생 전체 명단과 신청 과목을 불러옵니다.</span><button class="btn primary lg" type="button" id="bigConnect">Google 시트 연결</button><span class="small">처음이라면 「설정」 탭에서 연결 준비를 먼저 해 주세요.</span>')+'</div></div>';
+    page.innerHTML='<div class="panel"><div class="empty">'+(D.loading?'<b>시트를 불러오는 중…</b>':(lsGet('sc.consented','')?'<b>다시 연결해 주세요</b><span>보안을 위해 구글 로그인은 1시간마다 만료돼요. 버튼을 한 번 누르면 바로 이어집니다.</span><button class="btn primary lg" type="button" id="bigConnect">Google 시트 다시 연결</button>':'<b>과목선택 DB 시트에 연결해 주세요</b><span>상단의 「Google 시트 연결」을 누르면 학생 전체 명단과 신청 과목을 불러옵니다.</span><button class="btn primary lg" type="button" id="bigConnect">Google 시트 연결</button>')+'<span class="small">처음이라면 「설정」 탭에서 연결 준비를 먼저 해 주세요.</span>')+'</div></div>';
     var b=$('#bigConnect');if(b)b.addEventListener('click',function(){Store.connect().then(reload).catch(function(e){D.err=errMsg(e);render()})});
     return;
   }
@@ -811,7 +815,7 @@ function printPapers(list){
 /* ════════ 시작 ════════ */
 $('#brandSub').textContent='천안신당고등학교 교육과정부 · '+P.label;
 if(!DEMO){var gs=document.createElement('script');gs.src='https://accounts.google.com/gsi/client';gs.async=true;document.head.appendChild(gs)}
-if(DEMO)reload();else render();
+if(DEMO||(CFG.sheetUrl&&Google.hasToken()))reload();else render();
 </script>
 </body>
 </html>
