@@ -249,23 +249,24 @@ table.sheet tbody tr:hover td{background:var(--sunk)}
 table.sheet tbody tr:hover td.chg{background:var(--done-weak)}
 
 /* 크리스마스 장식 (귀엽게, 과하지 않게) */
-.xmas-scene{position:relative;display:flex;align-items:flex-end;gap:4px;margin:8px 0 0 2px;width:210px}
-.xmas-scene .tree{width:104px;height:auto}
-.xmas-scene .rudolph{width:66px;height:auto;margin-bottom:6px}
-.xmas-note{position:absolute;left:112px;top:-8px;font-family:var(--f-latin);font-style:italic;font-size:17px;color:#b0453a;letter-spacing:.02em;white-space:nowrap}
+.xmas-scene{position:relative;display:flex;align-items:flex-end;gap:6px;margin:8px 0 0 2px;width:190px}
+.xmas-scene .tree{width:84px;height:auto}
+.xmas-scene .rudolph{width:52px;height:auto;margin-bottom:4px}
+.xmas-note{position:absolute;left:84px;top:-6px;font-family:var(--f-latin);font-style:italic;font-size:17px;color:#b0453a;letter-spacing:.02em;white-space:nowrap}
 @media (max-width:980px){.xmas-scene{display:none}}
 .tree .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.4s ease-in-out infinite}
 .tree .lights circle{animation:blink 2.2s ease-in-out infinite}
 .tree .lights circle:nth-child(2n){animation-delay:.7s}.tree .lights circle:nth-child(3n){animation-delay:1.4s}
 @keyframes twinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.15) rotate(8deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
-.rudolph .r-body{transform-origin:45px 118px;animation:sway 2.4s ease-in-out infinite}
-.rudolph .r-arm-r{transform-origin:70px 64px;animation:wave 1.2s ease-in-out infinite}
+.rudolph .r-body{transform-origin:45px 118px;animation:hop 1.4s ease-in-out infinite}
+.rudolph .r-arm-r{transform-origin:70px 64px;animation:wave .7s ease-in-out infinite}
 .rudolph .r-arm-l{transform-origin:19px 64px;animation:wave2 1.2s ease-in-out infinite}
 body.music-on .rudolph .r-body{animation:dance 1.072s ease-in-out infinite}
 body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-duration:.536s}
 .r-glow{animation:glow 1.6s ease-in-out infinite}
 @keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes hop{0%,100%{transform:translateY(0) rotate(-4deg)}30%{transform:translateY(-7px) rotate(0)}50%{transform:translateY(0) rotate(4deg)}80%{transform:translateY(-7px) rotate(0)}}
 @keyframes dance{0%,100%{transform:rotate(-8deg) translateY(0)}25%{transform:rotate(0) translateY(-6px)}50%{transform:rotate(8deg) translateY(0)}75%{transform:rotate(0) translateY(-6px)}}
 @keyframes wave{0%,100%{transform:rotate(0)}50%{transform:rotate(-22deg)}}
 @keyframes wave2{0%,100%{transform:rotate(0)}50%{transform:rotate(18deg)}}
@@ -275,15 +276,15 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
 .sky-deco .tw{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:blink 2.6s ease-in-out infinite}
 .sky-deco .sn{position:absolute;top:-6px;width:4px;height:4px;border-radius:50%;background:#fff;opacity:.85;animation:snow linear infinite}
 @keyframes snow{0%{transform:translate(0,-6px)}50%{transform:translate(6px,90px)}100%{transform:translate(-4px,190px);opacity:0}}
-.sky-deco .sleigh{position:absolute;top:30%;left:0;width:48%;animation:fly 18s linear infinite}
-.sky-deco .sl-bob{animation:bob 1.6s ease-in-out infinite}
-.sky-deco .fly-deer{transform-box:fill-box;transform-origin:center;animation:gallop .8s ease-in-out infinite}
-@keyframes fly{0%{transform:translateX(-120%)}100%{transform:translateX(230%)}}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-@keyframes gallop{0%,100%{transform:rotate(0)}50%{transform:rotate(-4deg)}}
+.sky-deco .sleigh{position:absolute;top:34%;left:0;width:30%;animation:fly 11s linear infinite}
+.sky-deco .sl-bob{animation:bob .9s ease-in-out infinite}
+.sky-deco .fly-deer{transform-box:fill-box;transform-origin:center;animation:gallop .45s ease-in-out infinite}
+@keyframes fly{0%{transform:translate(-120%,30%) rotate(-4deg)}25%{transform:translate(40%,-40%) rotate(-7deg)}50%{transform:translate(130%,10%) rotate(3deg)}75%{transform:translate(230%,-50%) rotate(-6deg)}100%{transform:translate(360%,-10%) rotate(0)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes gallop{0%,100%{transform:rotate(2deg) translateY(1px)}50%{transform:rotate(-6deg) translateY(-2px)}}
 @media (prefers-reduced-motion:reduce){.xmas-scene *,.sky-deco *{animation:none!important}.sky-deco .sleigh{transform:translateX(60%)}}
 @media print{.xmas-scene,.sky-deco{display:none!important}}
-@media (max-width:640px){.arch{height:290px!important}.arch::before{top:42%}.sky-deco{height:42%}.sky-deco .sleigh{width:36%;top:22%}.sky-deco .moon{width:18px;height:18px;top:16%}}
+@media (max-width:640px){.arch{height:290px!important}.arch::before{top:42%}.sky-deco{height:42%}.sky-deco .sleigh{width:28%;top:26%}.sky-deco .moon{width:18px;height:18px;top:16%}}
 
 /* 음악 버튼 */
 .music-btn{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:25;
