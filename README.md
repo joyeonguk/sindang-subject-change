@@ -22,7 +22,7 @@ https://joyeonguk.github.io/sindang-subject-change/
 1. Google Cloud에서 프로젝트를 만들고 Google Sheets API를 사용으로 바꿉니다.
 2. OAuth 동의 화면을 만들고, 테스트 사용자에 선생님 계정을 넣습니다.
 3. 웹 애플리케이션용 OAuth 클라이언트 ID를 만듭니다. 승인된 자바스크립트 원본은 `https://joyeonguk.github.io`입니다.
-4. 클라이언트 ID를 `config.js`(또는 설정 탭)에 넣습니다. 시트 주소는 설정 탭에 넣습니다.
+4. (예전 방식 안내, 지금은 사용하지 않음)
 5. 「Google 시트 연결」을 누르고 시트 소유자 계정으로 로그인합니다.
 
 학생 데이터와 시트 주소는 GitHub에 올라가지 않습니다. 시트 주소는 각 컴퓨터의 브라우저에만 저장되고, 데이터는 선생님 계정 권한으로 시트에서 바로 읽고 씁니다.
