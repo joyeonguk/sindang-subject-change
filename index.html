@@ -521,7 +521,7 @@ function renderNav(){
   $('#nav').innerHTML=t.map(function(x,i){return '<button type="button" role="tab" data-tab="'+x[0]+'" aria-selected="'+(V.tab===x[0])+'"><span class="n">0'+(i+1)+'</span>'+x[1]+(x[0]==='requests'&&o?'<span class="cnt">'+o+'</span>':'')+'</button>'}).join('');
   var ti=0;t.forEach(function(x,i){if(x[0]===V.tab)ti=i});$('#heroIdx').textContent='0'+(ti+1)+' / 04';
   renderDial();
-  $$('#nav [data-tab]').forEach(function(b){b.addEventListener('click',function(){V.tab=b.getAttribute('data-tab');render()})});
+  $$('#nav [data-tab]').forEach(function(b){b.addEventListener('click',function(){V.tab=b.getAttribute('data-tab');V.adm=false;render()})});
   $('#nav').hidden=!CFG.auth;$('#dial').hidden=!CFG.auth;
   $('#conn').innerHTML=!CFG.auth?(DEMO?'<span class="dot demo"></span><span class="small muted">미리보기 데이터 · 저장되지 않아요</span>':'')
     :'<span class="dot '+(DEMO?'demo':D.loaded?'on':'')+'"></span><span class="small"><b style="font-weight:500">'+esc(CFG.teacher)+'</b> 선생님 · '+CFG.grade+'학년 담임교사'+(DEMO?' · 미리보기':'')+'</span>'
@@ -830,7 +830,7 @@ function countView(){
 /* ════════ 설정 ════════ */
 /* 설정 잠금: 비밀번호 원문 대신 솔트를 넣어 20만 번 돌린 PBKDF2 값만 둡니다. */
 var ADMIN_HASH='3237941038670209ed47ad77b507ddca9e022bbdc61e38055725fad3b4683e62',ADMIN_SALT='sindang-settings-v1';
-function adminOk(){try{return sessionStorage.getItem('sc.adm')===ADMIN_HASH}catch(e){return !!V.adm}}
+function adminOk(){return V.adm===true} // 설정 탭에 들어올 때마다 다시 묻습니다
 function checkAdmin(pw){
   if(!(window.crypto&&crypto.subtle))return Promise.reject(new Error('이 브라우저에서는 설정을 열 수 없어요.'));
   var enc=new TextEncoder();
@@ -846,7 +846,7 @@ function settingsView(){
   $('#admPw').focus();
   $('#admForm').addEventListener('submit',function(e){e.preventDefault();var b=e.target.querySelector('button');b.disabled=true;b.textContent='확인 중…';
     checkAdmin($('#admPw').value).then(function(ok){
-      if(ok){V.adm=true;try{sessionStorage.setItem('sc.adm',ADMIN_HASH)}catch(x){}settingsBody()}
+      if(ok){V.adm=true;settingsBody()}
       else{$('#admErr').innerHTML='<div class="err" role="alert">설정 비밀번호가 맞지 않습니다.</div>';b.disabled=false;b.textContent='설정 열기';$('#admPw').select()}
     }).catch(function(x){$('#admErr').innerHTML='<div class="err">'+esc(errMsg(x))+'</div>';b.disabled=false;b.textContent='설정 열기'});
   });
