@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>선택과목 변경 신청</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 학교 공문 양식 느낌의 단일 열 작업 화면. 상단 3색 띠(안내문 머리띠) + 단계별 카드 */
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --sunk:#f7f8fa; --ink:#18202e; --muted:#5a6476; --line:#d8dde6;
+  --brand:#1d4f91; --brand-ink:#ffffff; --brand-weak:#e7eef8; --amber:#e3a21a; --orange:#e2652a;
+  --ok:#1d7a4c; --ok-weak:#e3f3ea; --warn:#a86300; --warn-weak:#fbf0db; --bad:#b3261e; --bad-weak:#fbe7e5;
+  --paper:#ffffff; --paper-ink:#111111;
+  --f-head:"IBM Plex Sans KR","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1a2029; --sunk:#151a22; --ink:#e6e9ef; --muted:#a0a9b8; --line:#2e3644;
+  --brand:#7fb0f0; --brand-ink:#0d1626; --brand-weak:#1e2b40; --amber:#f0b94a; --orange:#f08552;
+  --ok:#5fc796; --ok-weak:#16302a; --warn:#f0b45a; --warn-weak:#33280f; --bad:#f08a83; --bad-weak:#3a1c1a;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1a2029; --sunk:#151a22; --ink:#e6e9ef; --muted:#a0a9b8; --line:#2e3644;
+  --brand:#7fb0f0; --brand-ink:#0d1626; --brand-weak:#1e2b40; --amber:#f0b94a; --orange:#f08552;
+  --ok:#5fc796; --ok-weak:#16302a; --warn:#f0b45a; --warn-weak:#33280f; --bad:#f08a83; --bad-weak:#3a1c1a;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+h1,h2,h3{font-family:var(--f-head);text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:1.55rem;font-weight:700}
+h2{font-size:1.15rem;font-weight:700}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.num{font-variant-numeric:tabular-nums}
+
+.demo{max-width:880px;margin:12px auto 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 14px;
+  border:1px dashed var(--amber);border-radius:var(--r);background:var(--warn-weak);font-size:.86rem}
+.demo b{color:var(--warn)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 12px;font:inherit;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);font-weight:600}
+
+.masthead{padding-top:20px;display:flex;flex-direction:column;gap:8px}
+.tricolor{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--brand) 0 62%,var(--amber) 62% 84%,var(--orange) 84%)}
+.mast-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px}
+.eyebrow{font-size:.8rem;letter-spacing:.06em;color:var(--muted);font-weight:500}
+.period{display:inline-flex;align-items:center;gap:8px;font-size:.86rem;padding:4px 10px;border-radius:999px;background:var(--brand-weak);color:var(--brand);font-weight:600}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.88rem;font-weight:500}
+input[type=text],input[type=password],input[type=date],select,textarea{font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{min-height:120px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.btn{font:inherit;font-weight:600;border-radius:8px;padding:10px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--brand);padding:6px 8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.end{justify-content:flex-end}
+.row.between{justify-content:space-between}
+.err{color:var(--bad);background:var(--bad-weak);border-radius:8px;padding:9px 12px;font-size:.9rem}
+.note{background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:.88rem}
+
+ol.steps-guide{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+ol.steps-guide li::marker{font-weight:700;color:var(--brand)}
+ul.plain{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+
+.stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;counter-reset:s}
+.stepper div{font-size:.8rem;padding:8px 6px 6px;border-top:3px solid var(--line);color:var(--muted);font-weight:500}
+.stepper div.on{border-color:var(--brand);color:var(--ink);font-weight:700}
+.stepper div.done{border-color:var(--brand);color:var(--muted)}
+.stepper span{display:block;font-size:.72rem;letter-spacing:.06em}
+
+.who{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline}
+.who b{font-family:var(--f-head);font-size:1.1rem}
+
+.semcols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:520px){.semcols{grid-template-columns:1fr}}
+.sem{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.sem h3{background:var(--sunk);padding:8px 12px;border-bottom:1px solid var(--line);font-size:.92rem}
+.sem ol{margin:0;padding:6px 12px 8px 2.2em}
+.sem li{padding:3px 0}
+.sem li.out{color:var(--muted);text-decoration:line-through}
+.sem li.in{color:var(--ok);font-weight:700}
+.sem li .arrow{color:var(--muted);text-decoration:none;display:inline-block;margin:0 4px;font-weight:400}
+
+.q{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}
+.yn{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.yn label{padding:6px 14px;cursor:pointer;font-size:.9rem;color:var(--muted)}
+.yn input{position:absolute;opacity:0;pointer-events:none}
+.yn label:has(input:checked){background:var(--brand);color:var(--brand-ink);font-weight:700}
+.yn label.no:has(input:checked){background:var(--bad);color:#fff}
+.yn label:has(input:focus-visible){outline:2px solid var(--brand);outline-offset:-2px}
+
+.chg{display:grid;grid-template-columns:86px minmax(0,1fr) 22px minmax(0,1fr) auto;gap:8px;align-items:center}
+.chg .arr{text-align:center;color:var(--muted)}
+@media (max-width:600px){.chg{grid-template-columns:1fr 1fr;padding:10px;border:1px solid var(--line);border-radius:8px}
+  .chg .arr{display:none}.chg select.sem{grid-column:1 / -1}}
+.tag{display:inline-block;font-size:.72rem;padding:1px 6px;border-radius:4px;background:var(--brand-weak);color:var(--brand);font-weight:600;vertical-align:1px}
+
+.sigs{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:600px){.sigs{grid-template-columns:1fr}}
+.sig{display:flex;flex-direction:column;gap:6px}
+.sig canvas{width:100%;height:140px;background:var(--paper);border:1px dashed var(--muted);border-radius:8px;touch-action:none;cursor:crosshair}
+
+.pill{display:inline-block;font-size:.78rem;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.st-접수{background:var(--brand-weak);color:var(--brand)}
+.st-상담중{background:var(--warn-weak);color:var(--warn)}
+.st-승인{background:var(--ok-weak);color:var(--ok)}
+.st-반려{background:var(--bad-weak);color:var(--bad)}
+
+/* 교사 */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{font:inherit;border:0;background:transparent;padding:10px 14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-color:var(--brand)}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+@media (max-width:640px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface)}
+.stat .k{font-size:.8rem;color:var(--muted)}
+.stat .v{font-family:var(--f-head);font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.t{border-collapse:collapse;width:100%;font-size:.88rem}
+table.t th,table.t td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.t th{background:var(--sunk);font-weight:600;white-space:nowrap;font-size:.82rem;color:var(--muted)}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:var(--brand-weak)}
+table.t td.n,table.t th.n{text-align:right;font-variant-numeric:tabular-nums}
+.delta-up{color:var(--ok);font-weight:700}.delta-dn{color:var(--bad);font-weight:700}
+.summary-cell{white-space:pre-line;min-width:220px}
+
+/* 출력용 양식 (A4 종이) */
+.paper-wrap{overflow-x:auto}
+.paper{background:var(--paper);color:var(--paper-ink);width:100%;max-width:720px;margin:0 auto;padding:28px 30px;border:1px solid var(--line);font-size:13px;line-height:1.5}
+.paper h2{text-align:center;font-size:20px;letter-spacing:.3em;margin:4px 0 14px;color:var(--paper-ink)}
+.paper .formno{font-size:12px;color:#444}
+.paper table{border-collapse:collapse;width:100%;color:var(--paper-ink)}
+.paper td,.paper th{border:1px solid #333;padding:6px 8px;vertical-align:middle}
+.paper th{background:#eef1f5;font-weight:600}
+.paper .ck{width:110px;text-align:center;white-space:nowrap}
+.paper .sigline{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:4px}
+.paper .sigline img{height:46px;width:auto;max-width:160px}
+.paper .foot{text-align:center;font-weight:700;font-size:16px;margin-top:14px;letter-spacing:.1em}
+.paper .gap{height:22px}
+.paper .page-break{break-before:page}
+.drawer-head{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:20;max-width:calc(100% - 32px)}
+.loading{opacity:.6;pointer-events:none}
+
+@media print{
+  body{background:#fff;padding:0}
+  body *{visibility:hidden}
+  #printArea,#printArea *{visibility:visible}
+  #printArea{position:absolute;left:0;top:0;width:100%}
+  .paper{border:0;max-width:none;padding:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="demo" id="demoBar" hidden>
+  <b>미리보기</b><span>예시 데이터로 동작하며 저장되지 않습니다.</span>
+  <div class="seg" role="group" aria-label="화면 전환">
+    <button type="button" id="demoStudent" aria-pressed="true">학생 화면</button>
+    <button type="button" id="demoTeacher" aria-pressed="false">교사 화면</button>
+  </div>
+  <span class="muted" id="demoHint"></span>
+</div>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="tricolor" aria-hidden="true"></div>
+    <div class="mast-row">
+      <div>
+        <div class="eyebrow">천안신당고등학교 교육과정부</div>
+        <h1>2027학년도 선택과목 변경 신청</h1>
+      </div>
+      <span class="period" id="periodBadge">신청 기간 확인 중</span>
+    </div>
+  </header>
+  <main id="app" class="wrap" style="max-width:none"></main>
+</div>
+<div id="printArea" hidden></div>
+
+<script>
+var MODE_RAW = '<?= mode ?>';
+var DEMO = !(window.google && google.script && google.script.run);
+var MODE = DEMO ? 'student' : (MODE_RAW === 'teacher' ? 'teacher' : 'student');
+
+/* ───────── 문구 (안내문 양식1·2 원문) ───────── */
+var AGREE_STUDENT = [
+  '본인의 선택과목 변경에 대해 충분한 탐색의 시간을 거쳤습니다.',
+  '학교 홈페이지에 게시된 [과목선택 가이드 PDF 파일]을 보고 바꾸고자 하는 과목에 대해 알아보았습니다.',
+  '자신의 진로에 대해 부모님과 충분한 상담을 거쳤습니다.',
+  '선택과목 변경에 따른 교과서 구매 및 그 외 필요한 사항에 대해 스스로 준비해야 함을 알고 있습니다.',
+  '선택과목 변경 이후에 다시 번복할 수 없음에 동의합니다.',
+  '변경 희망 과목에 대한 수업이 이미 진행된 경우 해당 부분의 수업을 듣지 못함으로써 발생할 수 있는 불이익에 대해 감수하겠습니다.'
+];
+var AGREE_PARENT = [
+  '자녀의 선택과목 변경에 대해 충분한 탐색의 시간을 거쳤습니다.',
+  '자녀의 진로에 대해 자녀와 충분한 상담을 거쳤습니다.',
+  '자녀의 선택과목 변경에 따른 교과서 구매 및 그 외 필요한 사항에 대해 스스로 준비해야 함을 알고 있습니다.',
+  '선택과목 변경 이후에 다시 번복할 수 없음에 동의합니다.',
+  '자녀의 변경 희망 과목에 대한 수업이 이미 진행된 경우 해당 부분의 수업을 듣지 못함으로써 발생할 수 있는 불이익에 대해 감수하겠습니다.'
+];
+var STATUSES = ['접수', '상담중', '승인', '반려'];
+
+/* ───────── 도우미 ───────── */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function norm(s){return String(s||'').replace(/\*/g,'').replace(/\s+/g,'').replace(/III$/,'Ⅲ').replace(/II$/,'Ⅱ').replace(/I$/,'Ⅰ')}
+function $(s,r){return (r||document).querySelector(s)}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+function toast(msg){var t=document.createElement('div');t.className='toast';t.setAttribute('role','status');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2600)}
+function fmtDate(d){if(!d)return'';var p=d.split('-');var w='일월화수목금토'[new Date(+p[0],+p[1]-1,+p[2]).getDay()];return +p[0]+'.'+(+p[1])+'.'+(+p[2])+'.('+w+')'}
+function api(fn){
+  var args=[].slice.call(arguments,1);
+  return new Promise(function(res,rej){
+    if(DEMO){setTimeout(function(){try{res(Mock[fn].apply(null,args))}catch(e){rej(e)}},300);return}
+    var r=google.script.run.withSuccessHandler(res).withFailureHandler(rej);r[fn].apply(r,args);
+  });
+}
+function errMsg(e){return (e&&e.message?e.message:String(e)).replace(/^Exception:\s*/,'')}
+function subjInfo(sem,name){var l=(CFG.subjects||{})[sem]||[];for(var i=0;i<l.length;i++)if(norm(l[i][1])===norm(name))return l[i];return null}
+function tagHtml(t){return t==='sci'?' <span class="tag">과학 진로</span>':t==='pe'?' <span class="tag">체육특성화</span>':''}
+
+var CFG={subjects:{1:[],2:[]},maxChanges:5};
+var app=$('#app');
+
+/* ═════════════════ 학생 화면 ═════════════════ */
+var S={step:0,cred:null,st:null,form:null,err:''};
+function newForm(){return{agreeStudent:[],agreeParent:[],science:'',pe:'',changes:[{sem:'',from:'',to:''}],reason:'',guardian:'',signStudent:'',signParent:''}}
+
+function studentStart(){
+  api('getPublicConfig').then(function(c){CFG=c;setPeriod(c);renderStudent()}).catch(function(e){app.innerHTML='<div class="err">'+esc(errMsg(e))+'</div>'});
+}
+function setPeriod(c){
+  $('#periodBadge').textContent=c.start&&c.end?('신청 기간 '+fmtDate(c.start)+' ~ '+fmtDate(c.end)):'신청 기간 미정';
+}
+function stepper(){
+  var names=['기존 과목 확인','확인서 [양식1]','신청서 [양식2]','서명·제출'];
+  return '<div class="stepper" aria-label="진행 단계">'+names.map(function(n,i){var k=i+1;return '<div class="'+(S.step===k?'on':S.step>k?'done':'')+'"'+(S.step===k?' aria-current="step"':'')+'><span>'+k+'단계</span>'+n+'</div>'}).join('')+'</div>';
+}
+function whoBar(){return '<div class="who"><b>'+esc(S.st.id)+' '+esc(S.st.name)+'</b><span class="muted small">과목선택 DB에서 불러온 정보</span><button class="btn ghost small" id="logout" type="button">로그아웃</button></div>'}
+
+function renderStudent(){
+  var h='';
+  if(S.step===0){
+    h+='<div class="grid2">'
+      +'<form class="card" id="loginForm" autocomplete="off"><h2>본인 확인</h2>'
+      +'<p class="muted small">2학년 과목선택 때 등록한 학번·이름·개인 비밀번호를 입력하세요.</p>'
+      +'<label class="f">학번 (현재 학번 5자리)<input type="text" id="lgId" inputmode="numeric" maxlength="5" placeholder="예: 10106"></label>'
+      +'<label class="f">이름<input type="text" id="lgName" placeholder="예: 홍길동"></label>'
+      +'<label class="f">개인 비밀번호<input type="password" id="lgPw" placeholder="과목선택 때 정한 비밀번호"></label>'
+      +(S.err?'<div class="err" role="alert">'+esc(S.err)+'</div>':'')
+      +'<button class="btn primary" type="submit">기존 신청 과목 불러오기</button>'
+      +'<p class="muted small">비밀번호를 잊었다면 담임선생님께 문의하세요.</p></form>'
+      +'<section class="card"><h2>변경 신청 안내</h2>'
+      +'<p class="small">정기 수강신청 마감 이후 진학 희망 계열·진로 변경 등으로 수강 과목 조정이 필요한 학생을 위한 변경 기간입니다. 분반 편성과 교과서 주문이 끝난 상태이므로 <b>변경은 최소 범위에서 제한적으로 허용</b>됩니다.</p>'
+      +'<h3>처리 절차 (교육과정 규정 제13조)</h3>'
+      +'<ol class="steps-guide small">'
+      +'<li><b>변경 요청</b> · 학생·학부모 연명으로 이 페이지에서 확인서와 신청서 제출</li>'
+      +'<li><b>상담 및 숙려 기간 (1주)</b> · 담임교사, 진로기획부장, 교육과정부장 상담 필수</li>'
+      +'<li><b>교육과정위원회 검토·심의</b> · 확인서, 신청서, 상담 내용 반영</li>'
+      +'<li><b>결과 통보</b> · 학교장 결재 후 통보</li></ol>'
+      +'<div class="note"><b>유의점</b><ul class="plain">'
+      +'<li>2차 수강신청 과목의 교과서가 지급됩니다. 변경 과목 교과서는 개별 구매합니다.</li>'
+      +'<li>일반선택과목 26명 이상 편성 기준, 평가 기준·방법 변동 등의 사유로 변경이 받아들여지지 않을 수 있습니다.</li>'
+      +'<li>2학년 과정만 변경할 수 있습니다.</li></ul></div></section></div>';
+    app.innerHTML=h;
+    $('#loginForm').addEventListener('submit',function(e){
+      e.preventDefault();var f=e.target;f.classList.add('loading');
+      var cred={id:$('#lgId').value.trim(),name:$('#lgName').value.trim(),pw:$('#lgPw').value.trim()};
+      api('studentLogin',cred.id,cred.name,cred.pw).then(function(st){
+        S.cred=cred;S.st=st;S.err='';S.form=newForm();
+        if(st.request&&st.request.status==='접수'){prefill(st.request)}
+        S.step=1;renderStudent();
+      }).catch(function(e){S.err=errMsg(e);renderStudent()});
+    });
+    return;
+  }
+  if(S.step===5){
+    app.innerHTML='<section class="card"><h2>변경 신청이 접수되었습니다</h2>'
+      +'<p>'+esc(S.st.id)+' '+esc(S.st.name)+' · 접수 '+esc(S.done.time)+'</p>'
+      +'<div class="note" style="white-space:pre-line">'+esc(S.done.summary)+'</div>'
+      +'<p class="small muted">이제 1주간 상담·숙려 기간입니다. 담임선생님, 진로기획부장, 교육과정부장 선생님과 상담을 진행하세요. 결과는 학교장 결재 후 통보됩니다. 상담 전(「접수」 상태)까지는 이 페이지에서 다시 로그인해 내용을 고치거나 취소할 수 있습니다.</p>'
+      +'<div class="row"><button class="btn" id="logout" type="button">처음으로</button></div></section>';
+    bindLogout();return;
+  }
+
+  h+=stepper()+'<section class="card">'+whoBar();
+  if(S.step===1){
+    var r=S.st.request;
+    if(r){
+      h+='<div class="note"><div class="row between"><b>이미 제출한 신청이 있습니다</b><span class="pill st-'+esc(r.status)+'">'+esc(r.status)+'</span></div>'
+        +'<div class="small" style="white-space:pre-line;margin-top:4px">'+esc(r.summary)+'</div>'
+        +'<div class="small muted">접수 '+esc(r.time)+(r.memo?' · 선생님 메모: '+esc(r.memo):'')+'</div></div>';
+    }
+    h+='<h2>현재 신청되어 있는 2학년 과목</h2>'+semView(S.st.sem1,S.st.sem2,[]);
+    if(r&&r.status!=='접수'){
+      h+='<p class="small">신청이 「'+esc(r.status)+'」 단계라 이 페이지에서 수정할 수 없습니다. 담임선생님께 문의하세요.</p></section>';
+      app.innerHTML=h;bindLogout();return;
+    }
+    h+='<p class="small muted">위 과목이 실제 신청 내용과 다르면 진행하지 말고 담임선생님께 먼저 확인하세요.</p>'
+      +'<div class="row between">'+(r?'<button class="btn danger" type="button" id="cancelReq">신청 취소</button>':'<span></span>')
+      +'<button class="btn primary" type="button" data-go="2">'+(r?'신청 내용 수정하기':'변경 신청 시작')+'</button></div>';
+  }
+  if(S.step===2){
+    h+='<h2>선택과목 변경 신청 확인서</h2><p class="small muted">모든 문항에 「예」로 답해야 다음 단계로 갈 수 있습니다. 「아니오」가 있다면 충분히 상담한 뒤 다시 신청하세요.</p>'
+      +'<h3>학생용</h3><div>'+AGREE_STUDENT.map(function(q,i){return qRow('as'+i,q,S.form.agreeStudent[i])}).join('')+'</div>'
+      +'<h3>학부모용 <span class="muted small">(보호자와 함께 읽고 체크)</span></h3><div>'+AGREE_PARENT.map(function(q,i){return qRow('ap'+i,q,S.form.agreeParent[i])}).join('')+'</div>'
+      +errBox()+'<div class="row between"><button class="btn" type="button" data-go="1">이전</button><button class="btn primary" type="button" data-go="3">다음</button></div>';
+  }
+  if(S.step===3){
+    h+='<h2>선택과목 변경 신청서</h2>'
+      +'<div class="row" style="gap:18px">'+oxField('science','과학중점 희망 여부',S.form.science)+oxField('pe','체육특성화과정 희망 여부',S.form.pe)+'</div>'
+      +'<h3>변경 신청 과목 <span class="muted small">(최대 '+CFG.maxChanges+'건, 같은 학기 안에서 1:1로 바꿉니다)</span></h3>'
+      +'<div id="chgList" style="display:flex;flex-direction:column;gap:8px">'+S.form.changes.map(chgRow).join('')+'</div>'
+      +'<div><button class="btn ghost" type="button" id="addChg"'+(S.form.changes.length>=CFG.maxChanges?' disabled':'')+'>+ 변경 과목 추가</button></div>'
+      +'<h3>변경 후 과목</h3><div id="afterView">'+semView(S.st.sem1,S.st.sem2,S.form.changes)+'</div>'
+      +'<label class="f">변경 사유 <span class="muted small">성적, 진로 변경 등 사유를 상세하게 (20자 이상)</span><textarea id="reason" placeholder="예: 진로를 생명공학 계열로 바꾸면서 2학기 과학 진로 과목 이수가 필요합니다. …">'+esc(S.form.reason)+'</textarea></label>'
+      +'<div class="small muted num" id="reasonLen">'+S.form.reason.length+'자</div>'
+      +errBox()+'<div class="row between"><button class="btn" type="button" data-go="2">이전</button><button class="btn primary" type="button" data-go="4">다음</button></div>';
+  }
+  if(S.step===4){
+    h+='<h2>서명 및 제출</h2><div class="note small" style="white-space:pre-line"><b>신청 내용</b>\n'
+      +esc(cleanChanges().map(function(c){return c.sem+'학기 '+c.from+' → '+c.to}).join('\n'))
+      +'\n과학중점 '+esc(S.form.science)+' · 체육특성화 '+esc(S.form.pe)+'</div>'
+      +'<label class="f">보호자 성명<input type="text" id="guardian" value="'+esc(S.form.guardian)+'" placeholder="예: 홍판서"></label>'
+      +'<div class="sigs">'+sigBox('signStudent','학생 서명 ('+esc(S.st.name)+')')+sigBox('signParent','보호자 서명')+'</div>'
+      +'<p class="small muted">위의 사유로 선택과목을 변경하고자 신청서를 제출합니다. 제출 후 담임교사 확인·서명은 교육과정부 출력본에 받습니다.</p>'
+      +errBox()+'<div class="row between"><button class="btn" type="button" data-go="3">이전</button><button class="btn primary" type="button" id="submitBtn">변경 신청 제출</button></div>';
+  }
+  h+='</section>';
+  app.innerHTML=h;
+  bindLogout();
+  $$('[data-go]').forEach(function(b){b.addEventListener('click',function(){go(+b.getAttribute('data-go'))})});
+  if(S.step===1&&$('#cancelReq'))bindCancel();
+  if(S.step===2)$$('.yn input').forEach(function(i){i.addEventListener('change',readAgree)});
+  if(S.step===3)bindChanges();
+  if(S.step===4){initSig('signStudent');initSig('signParent');$('#guardian').addEventListener('input',function(e){S.form.guardian=e.target.value});$('#submitBtn').addEventListener('click',submit)}
+}
+function errBox(){return S.err?'<div class="err" role="alert">'+esc(S.err)+'</div>':''}
+function bindLogout(){var b=$('#logout');if(b)b.addEventListener('click',function(){S={step:0,cred:null,st:null,form:null,err:''};renderStudent()})}
+function bindCancel(){
+  var b=$('#cancelReq'),armed=false;
+  b.addEventListener('click',function(){
+    if(!armed){armed=true;b.textContent='한 번 더 누르면 취소됩니다';return}
+    api('cancelRequest',S.cred.id,S.cred.name,S.cred.pw).then(function(){S.st.request=null;S.form=newForm();toast('신청을 취소했습니다.');renderStudent()}).catch(function(e){toast(errMsg(e))});
+  });
+}
+function prefill(r){
+  S.form.agreeStudent=(r.agreeStudent||'').split(',');S.form.agreeParent=(r.agreeParent||'').split(',');
+  S.form.science=r.science;S.form.pe=r.pe;S.form.changes=r.changes&&r.changes.length?r.changes:[{sem:'',from:'',to:''}];
+  S.form.reason=r.reason||'';S.form.guardian=r.guardian||'';
+}
+function qRow(id,q,val){
+  return '<div class="q"><span class="small">'+esc(q)+'</span><span class="yn" role="radiogroup">'
+    +'<label><input type="radio" name="'+id+'" value="예"'+(val==='예'?' checked':'')+'>예</label>'
+    +'<label class="no"><input type="radio" name="'+id+'" value="아니오"'+(val==='아니오'?' checked':'')+'>아니오</label></span></div>';
+}
+function readAgree(){
+  S.form.agreeStudent=AGREE_STUDENT.map(function(_,i){var c=$('input[name="as'+i+'"]:checked');return c?c.value:''});
+  S.form.agreeParent=AGREE_PARENT.map(function(_,i){var c=$('input[name="ap'+i+'"]:checked');return c?c.value:''});
+}
+function oxField(id,label,val){
+  return '<div class="f" style="display:flex;flex-direction:column;gap:4px"><span class="small" style="font-weight:500">'+label+'</span><span class="yn" role="radiogroup" aria-label="'+label+'">'
+    +'<label><input type="radio" name="'+id+'" value="O"'+(val==='O'?' checked':'')+'>O</label>'
+    +'<label><input type="radio" name="'+id+'" value="X"'+(val==='X'?' checked':'')+'>X</label></span></div>';
+}
+function curList(sem){return sem==1?S.st.sem1:S.st.sem2}
+function chgRow(c,i){
+  var sem=String(c.sem||'');
+  var h='<div class="chg" data-i="'+i+'"><select class="sem" aria-label="학기"><option value="">학기</option><option value="1"'+(sem==='1'?' selected':'')+'>1학기</option><option value="2"'+(sem==='2'?' selected':'')+'>2학기</option></select>';
+  var usedFrom=S.form.changes.filter(function(x,j){return j!==i&&String(x.sem)===sem}).map(function(x){return norm(x.from)});
+  var usedTo=S.form.changes.filter(function(x,j){return j!==i&&String(x.sem)===sem}).map(function(x){return norm(x.to)});
+  h+='<select class="from" aria-label="기존 선택 과목"'+(sem?'':' disabled')+'><option value="">기존 과목</option>';
+  if(sem)curList(sem).forEach(function(s){if(usedFrom.indexOf(norm(s))<0)h+='<option'+(norm(s)===norm(c.from)?' selected':'')+'>'+esc(s)+'</option>'});
+  h+='</select><span class="arr" aria-hidden="true">⇒</span><select class="to" aria-label="변경 신청 과목"'+(sem?'':' disabled')+'><option value="">변경 과목</option>';
+  if(sem){
+    var cur=curList(sem).map(norm),group='';
+    (CFG.subjects[sem]||[]).forEach(function(s){
+      if(cur.indexOf(norm(s[1]))>=0||usedTo.indexOf(norm(s[1]))>=0)return;
+      if(s[0]!==group){if(group)h+='</optgroup>';group=s[0];h+='<optgroup label="'+esc(group)+'">'}
+      var dis=s[2]==='pe'&&S.form.pe!=='O';
+      h+='<option value="'+esc(s[1])+'"'+(norm(s[1])===norm(c.to)?' selected':'')+(dis?' disabled':'')+'>'+esc(s[1])+(s[2]==='sci'?' (과학 진로)':s[2]==='pe'?' (체육특성화 대상)':'')+'</option>';
+    });
+    if(group)h+='</optgroup>';
+  }
+  h+='</select><button class="btn ghost" type="button" data-del="'+i+'" aria-label="이 줄 삭제">삭제</button></div>';
+  return h;
+}
+function bindChanges(){
+  var list=$('#chgList');
+  list.addEventListener('change',function(e){
+    var row=e.target.closest('.chg');if(!row)return;var i=+row.getAttribute('data-i'),c=S.form.changes[i];
+    if(e.target.classList.contains('sem')){c.sem=e.target.value;c.from='';c.to=''}
+    if(e.target.classList.contains('from'))c.from=e.target.value;
+    if(e.target.classList.contains('to'))c.to=e.target.value;
+    refreshChanges();
+  });
+  list.addEventListener('click',function(e){
+    var d=e.target.getAttribute('data-del');if(d==null)return;
+    S.form.changes.splice(+d,1);if(!S.form.changes.length)S.form.changes.push({sem:'',from:'',to:''});refreshChanges();
+  });
+  $('#addChg').addEventListener('click',function(){if(S.form.changes.length<CFG.maxChanges){S.form.changes.push({sem:'',from:'',to:''});refreshChanges()}});
+  $$('input[name=science],input[name=pe]').forEach(function(r){r.addEventListener('change',function(){S.form[r.name]=r.value;if(r.name==='pe')refreshChanges()})});
+  $('#reason').addEventListener('input',function(e){S.form.reason=e.target.value;$('#reasonLen').textContent=e.target.value.length+'자'});
+}
+function refreshChanges(){
+  $('#chgList').innerHTML=S.form.changes.map(chgRow).join('');
+  $('#afterView').innerHTML=semView(S.st.sem1,S.st.sem2,S.form.changes);
+  $('#addChg').disabled=S.form.changes.length>=CFG.maxChanges;
+}
+function semView(s1,s2,changes){
+  function col(sem,list){
+    var map={};(changes||[]).forEach(function(c){if(String(c.sem)===String(sem)&&c.from&&c.to)map[norm(c.from)]=c.to});
+    return '<div class="sem"><h3>'+sem+'학기 · '+list.length+'과목</h3><ol>'+list.map(function(s){
+      var to=map[norm(s)];var info=subjInfo(sem,s);
+      return to?'<li><span class="out">'+esc(s)+'</span><span class="arrow">→</span><span class="in">'+esc(to)+'</span>'+tagHtml((subjInfo(sem,to)||[])[2])+'</li>'
+               :'<li>'+esc(s)+tagHtml(info&&info[2])+'</li>';
+    }).join('')+'</ol></div>';
+  }
+  return '<div class="semcols">'+col(1,s1)+col(2,s2)+'</div>';
+}
+function cleanChanges(){return S.form.changes.filter(function(c){return c.sem&&c.from&&c.to})}
+function go(n){
+  S.err='';
+  if(n>S.step){
+    if(S.step===2){
+      readAgree();var a=S.form.agreeStudent.concat(S.form.agreeParent);
+      if(a.some(function(x){return !x})){S.err='모든 문항에 답해 주세요.';return renderStudent()}
+      if(a.some(function(x){return x==='아니오'})){S.err='「아니오」로 답한 문항이 있습니다. 충분한 탐색과 상담을 마친 뒤 신청해 주세요.';return renderStudent()}
+    }
+    if(S.step===3){
+      if(!S.form.science||!S.form.pe){S.err='과학중점·체육특성화 희망 여부를 O 또는 X로 골라 주세요.';return renderStudent()}
+      var cc=cleanChanges();
+      if(!cc.length){S.err='변경할 과목을 1개 이상 골라 주세요. (학기, 기존 과목, 변경 과목)';return renderStudent()}
+      if(cc.length!==S.form.changes.length){S.err='비어 있는 변경 줄이 있습니다. 채우거나 삭제해 주세요.';return renderStudent()}
+      if(S.form.reason.trim().length<20){S.err='변경 사유를 20자 이상 구체적으로 적어 주세요.';return renderStudent()}
+    }
+  }
+  S.step=n;renderStudent();window.scrollTo(0,0);
+}
+function sigBox(id,label){return '<div class="sig"><div class="row between"><span class="small" style="font-weight:500">'+label+'</span><button class="btn ghost small" type="button" data-clear="'+id+'">지우기</button></div><canvas id="'+id+'" aria-label="'+label+' 입력란"></canvas></div>'}
+function initSig(id){
+  var cv=$('#'+id),ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1,drawing=false,last=null,dirty=false;
+  function size(){var r=cv.getBoundingClientRect();cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#111'}
+  size();
+  if(S.form[id]){var im=new Image();im.onload=function(){var r=cv.getBoundingClientRect();ctx.drawImage(im,0,0,r.width,r.height)};im.src=S.form[id];dirty=true}
+  function pt(e){var r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+  cv.addEventListener('pointerdown',function(e){drawing=true;last=pt(e);cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener('pointermove',function(e){if(!drawing)return;var p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;dirty=true});
+  function end(){if(!drawing)return;drawing=false;if(dirty)S.form[id]=exportSig(cv)}
+  cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  $('[data-clear="'+id+'"]').addEventListener('click',function(){ctx.clearRect(0,0,cv.width,cv.height);S.form[id]='';dirty=false});
+}
+function exportSig(cv){ // 저장 용량을 줄이려고 가로 360px로 축소
+  var o=document.createElement('canvas'),w=360,h=Math.round(cv.height/cv.width*w);o.width=w;o.height=h;
+  o.getContext('2d').drawImage(cv,0,0,w,h);return o.toDataURL('image/png');
+}
+function submit(){
+  S.err='';
+  if(!S.form.guardian.trim()){S.err='보호자 성명을 입력해 주세요.';return renderStudent()}
+  if(!S.form.signStudent||!S.form.signParent){S.err='학생과 보호자 서명을 모두 해 주세요.';return renderStudent()}
+  var b=$('#submitBtn');b.disabled=true;b.textContent='제출 중…';
+  var f=JSON.parse(JSON.stringify(S.form));f.changes=cleanChanges();
+  api('submitRequest',S.cred.id,S.cred.name,S.cred.pw,f).then(function(r){S.done=r;S.step=5;renderStudent();window.scrollTo(0,0)})
+    .catch(function(e){S.err=errMsg(e);renderStudent()});
+}
+
+/* ═════════════════ 교사 화면 ═════════════════ */
+var T={token:null,data:null,tab:'list',q:'',cls:'',status:'',detail:null,err:'',showSetup:false};
+
+function teacherStart(){
+  $('#periodBadge').textContent='교사용';
+  api('teacherState').then(function(s){T.showSetup=!s.configured;renderTeacher()}).catch(function(e){app.innerHTML='<div class="err">'+esc(errMsg(e))+'</div>'});
+}
+function renderTeacher(){
+  if(!T.token){
+    if(T.showSetup){
+      app.innerHTML='<form class="card" id="setupForm"><h2>저장소 만들기 (처음 한 번)</h2>'
+        +'<p class="small muted">교사 비밀번호를 정하고 기존 과목선택 DB를 연결하면, 내 구글 드라이브에 「2027 선택과목 변경 신청 저장소」 스프레드시트가 새로 만들어집니다. 학생 신청은 모두 이 저장소에 쌓이고, 과목선택 DB는 읽기만 합니다.</p>'
+        +'<label class="f">교사 비밀번호 (6자 이상)<input type="password" id="suPw"></label>'
+        +'<label class="f">과목선택 DB 스프레드시트 주소<input type="text" id="suDb" placeholder="https://docs.google.com/spreadsheets/d/…"></label>'
+        +'<label class="f">DB 시트 이름<input type="text" id="suSheet" value="천안신당고등학교 과목선택 DB"></label>'
+        +'<div class="row"><label class="f" style="flex:1">신청 시작일<input type="date" id="suStart" value="2026-12-07"></label><label class="f" style="flex:1">신청 마감일<input type="date" id="suEnd" value="2026-12-23"></label></div>'
+        +(T.err?'<div class="err" role="alert">'+esc(T.err)+'</div>':'')
+        +'<div class="row between"><span class="small muted">DB 열 구성: A 「학번 이름」 · B~G 1학기 · H~M 2학기 · O 비밀번호</span><button class="btn primary" type="submit">저장소 만들기</button></div></form>';
+      $('#setupForm').addEventListener('submit',function(e){
+        e.preventDefault();
+        api('teacherSetup',{pw:$('#suPw').value,dbUrl:$('#suDb').value,dbSheet:$('#suSheet').value,start:$('#suStart').value,end:$('#suEnd').value})
+          .then(function(r){T.token=r.token;T.err='';toast('저장소를 만들었습니다.');loadTeacher()}).catch(function(e){T.err=errMsg(e);renderTeacher()});
+      });
+      return;
+    }
+    app.innerHTML='<form class="card" id="tLogin" style="max-width:420px"><h2>교사 로그인</h2>'
+      +'<label class="f">교사 비밀번호<input type="password" id="tPw" autocomplete="current-password"></label>'
+      +(T.err?'<div class="err" role="alert">'+esc(T.err)+'</div>':'')
+      +'<button class="btn primary" type="submit">들어가기</button>'
+      +(DEMO?'<button class="btn ghost" type="button" id="showSetup">처음 설정(저장소 만들기) 화면 보기</button>':'')+'</form>';
+    $('#tLogin').addEventListener('submit',function(e){e.preventDefault();api('teacherLogin',$('#tPw').value).then(function(t){T.token=t;T.err='';loadTeacher()}).catch(function(e){T.err=errMsg(e);renderTeacher()})});
+    if($('#showSetup'))$('#showSetup').addEventListener('click',function(){T.showSetup=true;T.err='';renderTeacher()});
+    return;
+  }
+  if(!T.data){app.innerHTML='<p class="muted">불러오는 중…</p>';return}
+  var d=T.data,h='';
+  var cnt={전체:d.list.length};STATUSES.forEach(function(s){cnt[s]=d.list.filter(function(r){return r.status===s}).length});
+  h+='<div class="stats">'+['전체'].concat(STATUSES).map(function(k){return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+cnt[k]+'</div></div>'}).join('')+'</div>';
+  h+='<div class="tabs" role="tablist">'+[['list','신청 목록'],['count','과목별 인원 변동'],['settings','저장소·설정']].map(function(t){return '<button role="tab" type="button" data-tab="'+t[0]+'" aria-selected="'+(T.tab===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>';
+  if(T.detail)h+=detailView();
+  else if(T.tab==='list')h+=listView();
+  else if(T.tab==='count')h+=countView();
+  else h+=settingsView();
+  app.innerHTML=h;
+  $$('[data-tab]').forEach(function(b){b.addEventListener('click',function(){T.tab=b.getAttribute('data-tab');T.detail=null;renderTeacher()})});
+  bindTeacher();
+}
+function loadTeacher(){T.data=null;renderTeacher();api('teacherData',T.token).then(function(d){T.data=d;renderTeacher()}).catch(function(e){T.token=null;T.err=errMsg(e);renderTeacher()})}
+function clsOf(id){return String(id).slice(1,3)}
+function listView(){
+  var d=T.data,classes={};d.list.forEach(function(r){classes[clsOf(r.id)]=1});
+  var rows=d.list.filter(function(r){
+    return (!T.status||r.status===T.status)&&(!T.cls||clsOf(r.id)===T.cls)&&(!T.q||(r.id+r.name).indexOf(T.q)>=0);
+  });
+  var h='<div class="row"><input type="text" id="fQ" placeholder="학번 또는 이름 검색" value="'+esc(T.q)+'" style="max-width:220px">'
+    +'<select id="fCls" style="max-width:120px"><option value="">전체 반</option>'+Object.keys(classes).sort().map(function(c){return '<option value="'+c+'"'+(T.cls===c?' selected':'')+'>'+(+c)+'반</option>'}).join('')+'</select>'
+    +'<select id="fSt" style="max-width:120px"><option value="">전체 상태</option>'+STATUSES.map(function(s){return '<option'+(T.status===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select>'
+    +'<span class="small muted">'+rows.length+'건</span></div>';
+  if(!rows.length)return h+'<div class="card"><p class="muted">'+(d.list.length?'조건에 맞는 신청이 없습니다.':'아직 접수된 신청이 없습니다. 학생 화면 주소를 담임선생님께 안내해 주세요.')+'</p></div>';
+  h+='<div class="tbl-wrap"><table class="t"><thead><tr><th>접수일시</th><th>학번</th><th>이름</th><th>변경 내역</th><th>과학중점</th><th>체육특성화</th><th>상태</th></tr></thead><tbody>'
+    +rows.map(function(r){return '<tr data-id="'+esc(r.id)+'" tabindex="0"><td class="num small">'+esc(r.time)+'</td><td class="num">'+esc(r.id)+'</td><td>'+esc(r.name)+'</td><td class="summary-cell small">'+esc(r.summary)+'</td><td>'+esc(r.science)+'</td><td>'+esc(r.pe)+'</td><td><span class="pill st-'+esc(r.status)+'">'+esc(r.status)+'</span></td></tr>'}).join('')
+    +'</tbody></table></div><p class="small muted">행을 누르면 확인서·신청서 양식으로 보고 상태를 바꾸거나 출력할 수 있습니다.</p>';
+  return h;
+}
+function countView(){
+  var d=T.data,h='<p class="small muted">현재 인원은 과목선택 DB 기준입니다. 신청 반영은 접수·상담중 신청을, 승인 반영은 승인된 신청만 더한 값입니다. 일반선택과목은 26명 이상 편성이 기준이므로, 예상 인원이 크게 줄어드는 과목은 분반 수와 함께 확인하세요.</p>';
+  [1,2].forEach(function(sem){
+    var delta={},appr={};
+    d.list.forEach(function(r){
+      if(r.status==='반려')return;
+      (r.changes||[]).forEach(function(c){
+        if(String(c.sem)!==String(sem))return;
+        var tgt=r.status==='승인'?appr:delta;
+        tgt[norm(c.from)]=(tgt[norm(c.from)]||0)-1;tgt[norm(c.to)]=(tgt[norm(c.to)]||0)+1;
+      });
+    });
+    function fm(n){return n>0?'<span class="delta-up">+'+n+'</span>':n<0?'<span class="delta-dn">'+n+'</span>':'<span class="muted">0</span>'}
+    h+='<h2>'+sem+'학기</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>교과(군)</th><th>과목</th><th class="n">현재 인원</th><th class="n">승인 반영</th><th class="n">대기 중 신청</th><th class="n">예상 인원</th></tr></thead><tbody>'
+      +d.subjects[sem].map(function(s){var k=norm(s[1]),cur=d.count[sem][k]||0,a=appr[k]||0,p=delta[k]||0;
+        return '<tr><td class="small muted">'+esc(s[0])+'</td><td>'+esc(s[1])+tagHtml(s[2])+'</td><td class="n">'+cur+'</td><td class="n">'+fm(a)+'</td><td class="n">'+fm(p)+'</td><td class="n"><b>'+(cur+a+p)+'</b></td></tr>'}).join('')
+      +'</tbody></table></div>';
+  });
+  return h;
+}
+function settingsView(){
+  var s=T.data.settings;
+  return '<form class="card" id="setForm"><h2>저장소</h2>'
+    +'<p class="small">학생 신청은 「'+esc(STORE_NAME)+'」 스프레드시트의 「변경신청」 시트에 1인 1행으로 저장됩니다. 서명은 이미지 데이터로 함께 저장됩니다.</p>'
+    +'<div class="row">'+(s.storeUrl&&!DEMO?'<a class="btn" href="'+esc(s.storeUrl)+'" target="_blank" rel="noopener">저장소 스프레드시트 열기</a>':'<span class="btn" aria-disabled="true">저장소 스프레드시트 열기 (미리보기에서는 비활성)</span>')
+    +'<button class="btn" type="button" id="newStore">새 저장소 만들기</button></div>'
+    +'<p class="small muted">새 저장소를 만들면 이후 신청은 새 파일에 쌓입니다. 기존 파일은 드라이브에 그대로 남습니다.</p>'
+    +'<h2>신청 기간</h2><div class="row"><label class="f" style="flex:1">시작일<input type="date" id="stStart" value="'+esc(s.start)+'"></label><label class="f" style="flex:1">마감일<input type="date" id="stEnd" value="'+esc(s.end)+'"></label></div>'
+    +'<p class="small muted">기간 밖에는 학생 로그인이 막힙니다. 연결된 DB 시트: '+esc(s.dbSheet)+' · 등록 학생 '+T.data.totalStudents+'명</p>'
+    +'<h2>교사 비밀번호 변경</h2><label class="f">새 비밀번호 (바꿀 때만 입력)<input type="password" id="stPw" autocomplete="new-password"></label>'
+    +'<div class="row end"><button class="btn primary" type="submit">설정 저장</button></div></form>';
+}
+var STORE_NAME='2027 선택과목 변경 신청 저장소';
+function detailView(){
+  var r=T.detail;
+  return '<div class="card"><div class="drawer-head"><button class="btn ghost" type="button" id="back">← 목록으로</button>'
+    +'<div class="row"><span class="pill st-'+esc(r.status)+'">'+esc(r.status)+'</span>'+(DEMO?'':'<button class="btn" type="button" id="printBtn">양식 출력</button>')+'</div></div>'
+    +'<div class="row" style="align-items:flex-end">'
+    +'<label class="f" style="width:140px">처리 상태<select id="dSt">'+STATUSES.map(function(s){return '<option'+(r.status===s?' selected':'')+'>'+s+'</option>'}).join('')+'</select></label>'
+    +'<label class="f" style="flex:1;min-width:200px">교사 메모 (상담 내용 등, 학생에게도 보입니다)<input type="text" id="dMemo" value="'+esc(r.memo)+'"></label>'
+    +'<button class="btn primary" type="button" id="dSave">저장</button></div>'
+    +(r.doneAt?'<p class="small muted">마지막 처리 '+esc(r.doneAt)+'</p>':'')
+    +'</div><div class="paper-wrap" id="paperSrc">'+paperHtml(r)+'</div>';
+}
+function paperHtml(r){
+  var as=(r.agreeStudent||'').split(','),ap=(r.agreeParent||'').split(',');
+  function ck(v){return v==='예'?'예 ☑ &nbsp;아니오 □':'예 □ &nbsp;아니오 ☑'}
+  var date=(r.time||'').slice(0,10).split('-');var dstr=date.length===3?date[0]+'. '+(+date[1])+'. '+(+date[2])+'.':'';
+  var sigS=r.signStudent?'<img src="'+r.signStudent+'" alt="학생 서명">':'(인)',sigP=r.signParent?'<img src="'+r.signParent+'" alt="보호자 서명">':'(인)';
+  var rows=(r.changes||[]);while(rows.length<5)rows=rows.concat([{}]);
+  var h='<div class="paper"><div class="formno">[양식1] 변경 신청 확인서</div><h2>선택과목 변경 신청 확인서</h2>'
+    +'<table><tr><th style="width:15%">학번</th><td>'+esc(r.id)+'</td><th style="width:15%">이름</th><td>'+esc(r.name)+'</td></tr></table><div style="height:8px"></div>'
+    +'<table><tr><th colspan="2">다음 사항에 대해 확인 후 오른쪽 칸에 예/아니오로 체크하시오.(학생용)</th></tr>'
+    +AGREE_STUDENT.map(function(q,i){return '<tr><td>'+esc(q)+'</td><td class="ck">'+ck(as[i])+'</td></tr>'}).join('')
+    +'<tr><th colspan="2">다음 사항에 대해 확인 후 오른쪽 칸에 예/아니오로 체크하시오.(학부모용)</th></tr>'
+    +AGREE_PARENT.map(function(q,i){return '<tr><td>'+esc(q)+'</td><td class="ck">'+ck(ap[i])+'</td></tr>'}).join('')+'</table>'
+    +'<p style="text-align:center;margin-top:12px">위의 사유로 선택과목을 변경하고자 신청서를 제출합니다.</p><p style="text-align:center">'+dstr+'</p>'
+    +'<div class="sigline">학 생 : '+esc(r.name)+' '+sigS+'</div><div class="sigline">보호자 : '+esc(r.guardian)+' '+sigP+'</div>'
+    +'<div class="foot">천안신당고등학교장 귀하</div>'
+    +'<div class="gap"></div><div class="page-break"></div>'
+    +'<div class="formno">[양식2] 변경 신청서</div><h2>선택과목 변경 신청서</h2>'
+    +'<table><tr><th style="width:18%">학년/반/번호</th><td>'+esc(r.id)+'</td><th style="width:15%">학생 성명</th><td>'+esc(r.name)+'</td></tr>'
+    +'<tr><th>과학중점<br>희망여부</th><td>'+esc(r.science)+'</td><th>체육특성화과정<br>희망여부</th><td>'+esc(r.pe)+'</td></tr></table><div style="height:8px"></div>'
+    +'<table><tr><th colspan="5">선택 변경 신청 과목</th></tr><tr><th colspan="2">기존 선택 과목</th><th rowspan="2" style="width:6%"></th><th colspan="2">변경 신청 과목</th></tr>'
+    +'<tr><th style="width:10%">학기</th><th>과목명</th><th style="width:10%">학기</th><th>과목명</th></tr>'
+    +rows.slice(0,5).map(function(c){return '<tr><td style="text-align:center">'+esc(c.sem||'')+'</td><td>'+esc(c.from||'')+'</td><td style="text-align:center">⇒</td><td style="text-align:center">'+esc(c.sem||'')+'</td><td>'+esc(c.to||'')+'</td></tr>'}).join('')
+    +'<tr><td colspan="5" style="height:120px;vertical-align:top"><b>&lt;변경사유&gt;</b> ※성적, 진로 변경 등 사유를 상세하게 작성<br><span style="white-space:pre-line">'+esc(r.reason)+'</span></td></tr></table>'
+    +'<p style="text-align:center;margin-top:12px">위의 사유로 선택과목을 변경하고자 신청서를 제출합니다.</p><p style="text-align:center">'+dstr+'</p>'
+    +'<div class="sigline">학 생 : '+esc(r.name)+' '+sigS+'</div><div class="sigline">보호자 : '+esc(r.guardian)+' '+sigP+'</div>'
+    +'<div class="sigline">담임교사 : <span style="display:inline-block;width:110px"></span>(인)</div>'
+    +'<div class="foot">천안신당고등학교장 귀하</div></div>';
+  return h;
+}
+function bindTeacher(){
+  if($('#fQ')){
+    $('#fQ').addEventListener('input',function(e){T.q=e.target.value.trim();var p=e.target.selectionStart;renderTeacher();var n=$('#fQ');n.focus();n.setSelectionRange(p,p)});
+    $('#fCls').addEventListener('change',function(e){T.cls=e.target.value;renderTeacher()});
+    $('#fSt').addEventListener('change',function(e){T.status=e.target.value;renderTeacher()});
+    $$('tr[data-id]').forEach(function(tr){
+      function open(){api('teacherDetail',T.token,tr.getAttribute('data-id')).then(function(r){T.detail=r;renderTeacher();window.scrollTo(0,0)}).catch(function(e){toast(errMsg(e))})}
+      tr.addEventListener('click',open);tr.addEventListener('keydown',function(e){if(e.key==='Enter')open()});
+    });
+  }
+  if($('#back'))$('#back').addEventListener('click',function(){T.detail=null;renderTeacher()});
+  if($('#dSave'))$('#dSave').addEventListener('click',function(){
+    var st=$('#dSt').value,memo=$('#dMemo').value;
+    api('teacherUpdate',T.token,T.detail.id,st,memo).then(function(u){
+      T.detail.status=u.status;T.detail.memo=u.memo;T.detail.doneAt=u.doneAt;
+      T.data.list.forEach(function(r){if(r.id===T.detail.id){r.status=u.status;r.memo=u.memo}});
+      toast('「'+u.status+'」(으)로 저장했습니다.');renderTeacher();
+    }).catch(function(e){toast(errMsg(e))});
+  });
+  if($('#printBtn'))$('#printBtn').addEventListener('click',function(){var p=$('#printArea');p.innerHTML=$('#paperSrc').innerHTML;p.hidden=false;window.print();p.hidden=true});
+  if($('#setForm')){
+    $('#setForm').addEventListener('submit',function(e){e.preventDefault();
+      api('teacherSaveSettings',T.token,{start:$('#stStart').value,end:$('#stEnd').value,newPw:$('#stPw').value})
+        .then(function(){T.data.settings.start=$('#stStart').value;T.data.settings.end=$('#stEnd').value;toast('설정을 저장했습니다.')}).catch(function(e){toast(errMsg(e))})});
+    var nb=$('#newStore'),armed=false;
+    nb.addEventListener('click',function(){
+      if(!armed){armed=true;nb.textContent='한 번 더 누르면 새 저장소를 만듭니다';return}
+      api('teacherNewStore',T.token).then(function(url){T.data.settings.storeUrl=url;toast('새 저장소를 만들었습니다.');loadTeacher()}).catch(function(e){toast(errMsg(e))});
+    });
+  }
+}
+
+/* ═════════════════ 미리보기용 예시 데이터 (Apps Script에서는 사용하지 않음) ═════════════════ */
+var Mock=(function(){
+  var SUBJ={
+    1:[['국어','문학'],['국어','독서토론과 글쓰기'],['영어','영어Ⅰ'],['수학','대수'],['사회','사회와 문화'],['사회','세계사'],['사회','세계시민과 지리'],['사회','현대사회와 윤리'],['과학','물리학'],['과학','화학'],['과학','생명과학'],['과학','지구과학'],['체육','기초 체육 전공실기','pe'],['기술·가정','로봇과 공학세계'],['정보','인공지능기초'],['제2외국어','일본어'],['제2외국어','중국어'],['한문','한문']],
+    2:[['국어','독서와 작문'],['영어','영어Ⅱ'],['영어','실생활 영어 회화'],['수학','미적분Ⅰ'],['수학','기하'],['사회','사회와 문화'],['사회','세계사'],['사회','세계시민과 지리'],['사회','현대사회와 윤리'],['사회','동아시아 역사기행'],['사회','한국지리 탐구'],['과학','물리학'],['과학','화학'],['과학','생명과학'],['과학','지구과학'],['과학','전자기와 양자','sci'],['과학','화학 반응의 세계','sci'],['과학','세포와 물질대사','sci'],['과학','지구시스템과학','sci'],['체육','고급 체육 전공실기','pe'],['기술·가정','로봇과 공학세계'],['정보','인공지능기초'],['제2외국어','일본어'],['제2외국어','중국어'],['한문','한문']]
+  };
+  var students={
+    '10101':{name:'김하늘',pw:'1234',sem1:['문학','영어Ⅰ','대수','세계사','화학','일본어'],sem2:['독서와 작문','영어Ⅱ','미적분Ⅰ','세계사','화학','일본어']}
+  };
+  // 과목별 현재 인원 (예시, 학생 310명 가정)
+  var seed=7;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+  var count={1:{},2:{}};[1,2].forEach(function(sem){SUBJ[sem].forEach(function(s){count[sem][norm(s[1])]=s[2]==='pe'?14:Math.round(30+rnd()*120)})});
+  function sig(word){var c=document.createElement('canvas');c.width=360;c.height=120;var x=c.getContext('2d');x.strokeStyle='#111';x.lineWidth=2.4;x.lineCap='round';x.beginPath();
+    var s=word.length*7;for(var i=0;i<=60;i++){var t=i/60;x.lineTo(40+t*260,60+Math.sin(t*(9+s%5))*22*Math.cos(t*3))}x.stroke();return c.toDataURL('image/png')}
+  var Y='예,예,예,예,예,예',P='예,예,예,예,예';
+  var reqs=[
+    {time:'2026-12-07 08:42',id:'10203',name:'예시학생A',science:'O',pe:'X',agreeStudent:Y,agreeParent:P,changes:[{sem:'2',from:'세계사',to:'전자기와 양자'}],reason:'1학기 진로 활동을 하며 전자공학 계열로 진로를 정했습니다. 2학기에 물리 진로 과목을 이수하려고 합니다.',guardian:'예시보호자A',status:'상담중',memo:'12/9 담임 상담 완료'},
+    {time:'2026-12-07 13:10',id:'10511',name:'예시학생B',science:'X',pe:'X',agreeStudent:Y,agreeParent:P,changes:[{sem:'1',from:'물리학',to:'사회와 문화'},{sem:'2',from:'물리학',to:'사회와 문화'}],reason:'인문사회 계열로 진로를 바꾸면서 사회 교과 이수가 더 필요하다고 판단했습니다. 부모님과 충분히 상의했습니다.',guardian:'예시보호자B',status:'접수',memo:''},
+    {time:'2026-12-08 09:05',id:'10708',name:'예시학생C',science:'X',pe:'X',agreeStudent:Y,agreeParent:P,changes:[{sem:'1',from:'중국어',to:'일본어'}],reason:'방과후 일본어 수업을 들으며 흥미가 생겼고 관련 학과 진학을 희망합니다.',guardian:'예시보호자C',status:'승인',memo:'위원회 승인 (12/15)'},
+    {time:'2026-12-08 16:22',id:'10915',name:'예시학생D',science:'X',pe:'X',agreeStudent:Y,agreeParent:P,changes:[{sem:'2',from:'기하',to:'실생활 영어 회화'}],reason:'수학 성적 부담으로 변경을 원합니다. 진로는 아직 정하지 못했습니다.',guardian:'예시보호자D',status:'반려',memo:'진로 근거 부족, 재상담 권유'},
+    {time:'2026-12-09 10:47',id:'10302',name:'예시학생E',science:'O',pe:'X',agreeStudent:Y,agreeParent:P,changes:[{sem:'1',from:'한문',to:'생명과학'},{sem:'2',from:'한문',to:'세포와 물질대사'}],reason:'과학중점과정 이수 요건(과학 일반선택 3과목 이상)을 채우기 위해 생명과학 계열 과목으로 변경하려 합니다.',guardian:'예시보호자E',status:'접수',memo:''}
+  ];
+  reqs.forEach(function(r){r.summary=r.changes.map(function(c){return c.sem+'학기 '+c.from+' → '+c.to}).join('\n');r.signStudent=null;r.signParent=null;r.doneAt=r.status==='접수'?'':'2026-12-10 15:00'});
+  function strip(r){var o=JSON.parse(JSON.stringify(r));o.signStudent='';o.signParent='';return o}
+  var TOKEN='demo-token';
+  return {
+    getPublicConfig:function(){return{configured:true,start:'2026-12-07',end:'2026-12-23',subjects:SUBJ,maxChanges:5}},
+    studentLogin:function(id,name,pw){
+      var s=students[id];
+      if(!s||s.name!==name.replace(/\s+/g,'')||s.pw!==pw)throw new Error('학번, 이름, 비밀번호가 과목선택 때 등록한 정보와 맞지 않습니다. (미리보기: 10101 / 김하늘 / 1234)');
+      var r=reqs.filter(function(x){return x.id===id})[0];
+      return{id:id,name:s.name,sem1:s.sem1.slice(),sem2:s.sem2.slice(),science:'',request:r?strip(r):null};
+    },
+    submitRequest:function(id,name,pw,f){
+      Mock.studentLogin(id,name,pw);
+      var t=new Date(),pad=function(n){return(n<10?'0':'')+n};var time=t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())+' '+pad(t.getHours())+':'+pad(t.getMinutes());
+      var summary=f.changes.map(function(c){return c.sem+'학기 '+c.from+' → '+c.to}).join('\n');
+      reqs=reqs.filter(function(x){return x.id!==id});
+      reqs.push({time:time,id:id,name:students[id].name,science:f.science,pe:f.pe,agreeStudent:f.agreeStudent.join(','),agreeParent:f.agreeParent.join(','),changes:f.changes,summary:summary,reason:f.reason,guardian:f.guardian,signStudent:f.signStudent,signParent:f.signParent,status:'접수',memo:'',doneAt:''});
+      return{time:time,summary:summary};
+    },
+    cancelRequest:function(id){reqs=reqs.filter(function(x){return x.id!==id});return true},
+    teacherState:function(){return{configured:true}},
+    teacherSetup:function(f){if(String(f.pw||'').length<6)throw new Error('교사 비밀번호는 6자 이상으로 정해 주세요.');if(!f.dbUrl)throw new Error('과목선택 DB 주소를 입력해 주세요.');return{token:TOKEN,storeUrl:''}},
+    teacherLogin:function(pw){if(pw!=='demo1234')throw new Error('교사 비밀번호가 맞지 않습니다. (미리보기: demo1234)');return TOKEN},
+    teacherData:function(){return{list:reqs.map(strip),count:count,subjects:SUBJ,totalStudents:310,settings:{start:'2026-12-07',end:'2026-12-23',storeUrl:'',dbSheet:'천안신당고등학교 과목선택 DB'}}},
+    teacherDetail:function(tok,id){
+      var r=reqs.filter(function(x){return x.id===id})[0];var o=JSON.parse(JSON.stringify(r));
+      if(!o.signStudent)o.signStudent=sig(o.name);if(!o.signParent)o.signParent=sig(o.guardian);
+      var s=students[id];o.sem1=s?s.sem1:[];o.sem2=s?s.sem2:[];return o;
+    },
+    teacherUpdate:function(tok,id,st,memo){var t='2026-12-10 15:30';reqs.forEach(function(r){if(r.id===id){r.status=st;r.memo=memo;r.doneAt=t}});return{status:st,memo:memo,doneAt:t}},
+    teacherSaveSettings:function(){return true},
+    teacherNewStore:function(){return''}
+  };
+})();
+
+/* ───────── 시작 ───────── */
+if(DEMO){
+  $('#demoBar').hidden=false;
+  var setDemo=function(m){
+    MODE=m;$('#demoStudent').setAttribute('aria-pressed',m==='student');$('#demoTeacher').setAttribute('aria-pressed',m==='teacher');
+    $('#demoHint').textContent=m==='student'?'로그인: 10101 / 김하늘 / 1234':'교사 비밀번호: demo1234';
+    S={step:0,cred:null,st:null,form:null,err:''};T={token:null,data:null,tab:'list',q:'',cls:'',status:'',detail:null,err:'',showSetup:false};
+    if(m==='student'){studentStart()}else{teacherStart()}
+  };
+  $('#demoStudent').addEventListener('click',function(){setDemo('student')});
+  $('#demoTeacher').addEventListener('click',function(){setDemo('teacher')});
+  setDemo('student');
+}else if(MODE==='teacher'){teacherStart()}else{studentStart()}
+</script>
+
+</html>
