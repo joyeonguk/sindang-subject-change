@@ -38,7 +38,7 @@ function doPost(e) {
     const g = SHEETS[String(q.grade)];
     if (!g) throw new Error('학년을 골라 주세요.');
     if (String(q.pw || '') !== String(g.pw)) throw new Error(q.grade + '학년 담임교사 비밀번호가 맞지 않습니다.');
-    const fn = { ping: ping, load: load, save: save, apply: apply }[q.fn];
+    const fn = { ping: ping, load: load, save: save, apply: apply, remove: remove, revert: revert }[q.fn];
     if (!fn) throw new Error('알 수 없는 요청입니다.');
     out = { ok: true, data: fn(q) };
   } catch (err) {
@@ -103,7 +103,7 @@ function fromRow_(v, i) {
 }
 
 // ───────── 요청 ─────────
-const VERSION = 3; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
+const VERSION = 4; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
 function ping(q) { db_(q.grade); return { grade: q.grade, tab: cfg_(q.grade).tab, version: VERSION }; }
 
 /** 학생 전체(학번순)와 변경 기록 */
@@ -131,13 +131,23 @@ function load(q) {
   };
 }
 
-/** 작성 저장 / 출력(처리중) / 취소 */
+/** 신청번호로 기록 줄을 찾습니다. (다른 선생님이 줄을 지워도 엉뚱한 줄을 고치지 않도록) */
+function findRow_(lg, no) {
+  const ln = lg.getLastRow();
+  if (!no || ln < 2) return 0;
+  const ids = lg.getRange(2, 1, ln - 1, 1).getDisplayValues();
+  for (let i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(no)) return i + 2;
+  return 0;
+}
+
+/** 작성 저장 / 출력(처리중) / 처리중 → 작성 되돌리기 */
 function save(q) {
   const t = teacher_(q), r = q.req, lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     const lg = log_(q.grade);
-    if (!r.logRow) {
+    let row = findRow_(lg, r.no);
+    if (!row) {
       const ln = lg.getLastRow();
       if (ln > 1) {
         const open = lg.getRange(2, 1, ln - 1, LOG_HEAD.length).getDisplayValues().filter(function (v) {
@@ -145,13 +155,37 @@ function save(q) {
         })[0];
         if (open) throw new Error('이 학생은 ' + (open[L['작성 선생님']] || '다른') + ' 선생님이 이미 작성 중입니다. 새로고침해 주세요.');
       }
-      r.createdBy = t;
+    } else {
+      const st = lg.getRange(row, L['상태'] + 1).getDisplayValue();
+      if (st === '접수완료') throw new Error('이미 접수 완료된 신청입니다. 새로고침해 주세요.');
     }
+    if (!r.createdBy) r.createdBy = t;
+    if (!r.createdAt) r.createdAt = now_();
     if (q.printing) { r.printedBy = t; r.printedAt = now_(); }
-    if (r.status === '취소') r.doneBy = t;
-    if (r.logRow) lg.getRange(r.logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(r)]);
-    else { lg.appendRow(toRow_(r)); r.logRow = lg.getLastRow(); }
+    if (r.status === '작성') { r.printedBy = ''; r.printedAt = ''; }
+    if (row) lg.getRange(row, 1, 1, LOG_HEAD.length).setValues([toRow_(r)]);
+    else { lg.appendRow(toRow_(r)); row = lg.getLastRow(); }
+    r.logRow = row;
     return r;
+  } finally { lock.releaseLock(); }
+}
+
+/** 신청 완전 삭제: 「변경신청」 탭에서 그 줄을 지웁니다. 접수완료는 먼저 되돌려야 지울 수 있습니다. */
+function remove(q) {
+  teacher_(q);
+  const nos = [].concat(q.nos || []).map(String), lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const lg = log_(q.grade);
+    const rows = [];
+    nos.forEach(function (no) {
+      const row = findRow_(lg, no);
+      if (!row) return; // 이미 지워짐
+      if (lg.getRange(row, L['상태'] + 1).getDisplayValue() === '접수완료') throw new Error('접수 완료된 신청은 지울 수 없습니다. 먼저 「접수 되돌리기」를 해 주세요.');
+      rows.push(row);
+    });
+    rows.sort(function (a, b) { return b - a; }).forEach(function (row) { lg.deleteRow(row); });
+    return { removed: rows.length };
   } finally { lock.releaseLock(); }
 }
 
@@ -160,7 +194,9 @@ function apply(q) {
   const t = teacher_(q), r = q.req, c = cfg_(q.grade), lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    const sh = db_(q.grade), width = 1 + c.n1 + c.n2;
+    const sh = db_(q.grade), width = 1 + c.n1 + c.n2, lg = log_(q.grade);
+    const logRow = findRow_(lg, r.no);
+    if (!logRow) throw new Error('이 신청 기록을 찾지 못했습니다. 다른 선생님이 지웠을 수 있어요. 새로고침해 주세요.');
     const row = Number(q.row);
     if (!(row > 1)) throw new Error('학생 행 정보가 없습니다. 새로고침해 주세요.');
     const cur = readRow_(sh, row, width);
@@ -176,7 +212,32 @@ function apply(q) {
     });
     sh.getRange(row, 2, 1, c.n1 + c.n2).setValues([a1.concat(a2)]);
     r.after = { sem1: a1, sem2: a2 }; r.status = '접수완료'; r.doneAt = now_(); r.doneBy = t;
-    log_(q.grade).getRange(r.logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(r)]);
+    if (!r.createdBy) r.createdBy = t;
+    lg.getRange(logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(r)]);
+    r.logRow = logRow;
     return r;
+  } finally { lock.releaseLock(); }
+}
+
+/** 접수 되돌리기: 시트 과목을 바뀌기 전으로 복구하고 기록을 「처리중」으로 */
+function revert(q) {
+  teacher_(q);
+  const r = q.req, c = cfg_(q.grade), lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sh = db_(q.grade), width = 1 + c.n1 + c.n2, lg = log_(q.grade);
+    const logRow = findRow_(lg, r.no);
+    if (!logRow) throw new Error('이 신청 기록을 찾지 못했습니다. 새로고침해 주세요.');
+    const saved = fromRow_(lg.getRange(logRow, 1, 1, LOG_HEAD.length).getDisplayValues()[0], logRow);
+    if (saved.status !== '접수완료' || !saved.after) throw new Error('접수 완료된 신청만 되돌릴 수 있습니다.');
+    const row = Number(q.row);
+    const cur = readRow_(sh, row, width);
+    if (String(cur[0] || '').trim().slice(0, 5) !== String(saved.id)) throw new Error('시트의 학생 행이 바뀌었습니다. 새로고침 후 다시 해 주세요.');
+    const s1 = pad_(cur.slice(1, 1 + c.n1), c.n1), s2 = pad_(cur.slice(1 + c.n1, width), c.n2);
+    if (!same_(s1, saved.after.sem1) || !same_(s2, saved.after.sem2)) throw new Error('접수 뒤에 시트의 이 학생 과목이 또 바뀌어서 자동으로 되돌릴 수 없습니다. 시트에서 직접 확인해 주세요.');
+    sh.getRange(row, 2, 1, c.n1 + c.n2).setValues([pad_(saved.before.sem1, c.n1).concat(pad_(saved.before.sem2, c.n2))]);
+    saved.status = '처리중'; saved.after = null; saved.doneAt = ''; saved.doneBy = '';
+    lg.getRange(logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(saved)]);
+    return saved;
   } finally { lock.releaseLock(); }
 }

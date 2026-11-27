@@ -431,16 +431,18 @@ function call(fn,extra,pw,grade){
     .then(function(t){
       if(timer)clearTimeout(timer);
       var j;try{j=JSON.parse(t)}catch(e){throw new Error('연결 통로가 오류 화면을 돌려줬어요. Apps Script 코드를 붙여 넣은 뒤 「새 버전」으로 배포했는지 확인해 주세요. ('+String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,120)+')')}
-      if(!j.ok)throw new Error(j.error||'요청을 처리하지 못했어요.');
-      if(fn==='ping'&&(!j.data||j.data.version!==API_VERSION))throw new Error('Apps Script에 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.');
+      if(!j.ok)throw new Error(j.error==='알 수 없는 요청입니다.'?'Apps Script를 새 버전으로 다시 배포해야 이 기능을 쓸 수 있어요.':(j.error||'요청을 처리하지 못했어요.'));
+      if(fn==='ping'&&(!j.data||!(j.data.version>=API_VERSION)))throw new Error('Apps Script에 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.');
       return j.data});
 }
-var API_VERSION=3;
+var API_VERSION=4;
 var Api={
   check:function(pw,grade){return call('ping',{},pw,grade)},
   load:function(){return call('load',{})},
   saveRequest:function(req,printing){return call('save',{req:req,printing:!!printing})},
-  apply:function(req,st){return call('apply',{req:req,row:st.row})}
+  apply:function(req,st){return call('apply',{req:req,row:st.row})},
+  remove:function(nos){return call('remove',{nos:nos})},
+  revert:function(req,st){return call('revert',{req:req,row:st.row})}
 };
 function same(a,b){if(a.length!==b.length)return false;for(var i=0;i<a.length;i++)if(norm(a[i])!==norm(b[i]))return false;return true}
 
@@ -480,7 +482,15 @@ var Demo=(function(){
       var s=students.filter(function(x){return x.id===st.id})[0],after=afterOf(s,req.changes);
       if(!same(s.raw1,req.before.sem1)||!same(s.raw2,req.before.sem2))return rej(new Error('그 사이 시트의 이 학생 과목이 바뀌었어요.'));
       s.raw1=after.sem1.slice();s.raw2=after.sem2.slice();req=clone(req);req.status='접수완료';req.doneAt=nowStr();req.doneBy=CFG.teacher;req.after=after;
-      requests=requests.map(function(x){return x.logRow===req.logRow?clone(req):x});setTimeout(res,250)})}
+      requests=requests.map(function(x){return x.logRow===req.logRow?clone(req):x});setTimeout(res,250)})},
+    remove:function(nos){return new Promise(function(res,rej){
+      if(requests.some(function(x){return nos.indexOf(x.no)>=0&&x.status==='접수완료'}))return rej(new Error('접수 완료된 신청은 지울 수 없습니다. 먼저 「접수 되돌리기」를 해 주세요.'));
+      var n=requests.length;requests=requests.filter(function(x){return nos.indexOf(x.no)<0});requests.forEach(function(x,i){x.logRow=i+2});setTimeout(function(){res({removed:n-requests.length})},200)})},
+    revert:function(req,st){return new Promise(function(res,rej){
+      var q=requests.filter(function(x){return x.no===req.no})[0],s=students.filter(function(x){return x.id===st.id})[0];
+      if(!q||q.status!=='접수완료')return rej(new Error('접수 완료된 신청만 되돌릴 수 있습니다.'));
+      if(!same(s.raw1,q.after.sem1)||!same(s.raw2,q.after.sem2))return rej(new Error('접수 뒤에 과목이 또 바뀌어서 자동으로 되돌릴 수 없습니다.'));
+      s.raw1=q.before.sem1.slice();s.raw2=q.before.sem2.slice();q.status='처리중';q.after=null;q.doneAt='';q.doneBy='';setTimeout(function(){res(clone(q))},250)})}
   };
 })();
 var Store=DEMO?Demo:Api;
@@ -634,7 +644,10 @@ function detailHtml(){
       +'<label class="f">변경 사유 <span class="muted" style="font-weight:400">비워 두면 양식에 빈칸으로 인쇄되어 학생이 직접 씁니다</span><textarea id="reason">'+esc(f.reason)+'</textarea></label>';
   }
   var hist=histOf(s.id);
-  if(hist.length)h+='<div><div class="eyebrow" style="margin-bottom:8px">지난 처리</div><div class="hist">'+hist.map(function(r){return '<div><span class="st st-'+r.status+'">'+r.status+'</span><span class="num">'+esc(r.doneAt||r.printedAt||r.createdAt)+'</span><span>'+esc(r.doneBy?r.doneBy+' 선생님':'')+'</span><span class="pre">'+esc(summary(r).replace(/\n/g,' · '))+'</span></div>'}).join('')+'</div></div>';
+  var lastDone=null;hist.forEach(function(r){if(r.status==='접수완료')lastDone=r});
+  if(hist.length)h+='<div><div class="eyebrow" style="margin-bottom:8px">지난 처리</div><div class="hist">'+hist.map(function(r){return '<div><span class="st st-'+r.status+'">'+r.status+'</span><span class="num">'+esc(r.doneAt||r.printedAt||r.createdAt)+'</span><span>'+esc(r.doneBy?r.doneBy+' 선생님':'')+'</span><span class="pre">'+esc(summary(r).replace(/\n/g,' · '))+'</span>'
+    +(r===lastDone&&!st?'<button class="btn ghost small" type="button" id="revertBtn">↶ 접수 되돌리기</button>':'')+'</div>'}).join('')+'</div>'
+    +(lastDone&&!st?'<p class="small muted" id="revertNote" style="margin-top:6px">접수 되돌리기: 시트 과목을 바뀌기 전으로 복구하고 「처리중」으로 돌립니다.</p>':'')+'</div>';
   if(V.confirm){
     var a=afterOf(s,f.changes);
     h+='<div class="confirm" role="alertdialog" aria-label="시트 반영 확인"><b>보호자 서명본을 받으셨나요? 아래 내용이 시트에 바로 반영됩니다.</b><ul>'
@@ -646,11 +659,11 @@ function detailHtml(){
   if(locked){
     h+='<button class="btn done lg" type="button" id="askApply">✓ 서명본 접수 완료</button>'
       +'<button class="btn" type="button" id="reprint">다시 인쇄</button>'
-      +'<span class="spacer"></span><button class="btn ghost" type="button" id="unlock">내용 고치기</button><button class="btn danger" type="button" id="cancelReq">신청 취소</button>';
+      +'<span class="spacer"></span><button class="btn ghost" type="button" id="toDraft">↶ 작성으로 되돌리기</button><button class="btn danger" type="button" id="cancelReq">신청 삭제</button>';
   }else{
     h+='<button class="btn primary lg" type="button" id="doPrint">인쇄 / PDF 저장 → 처리중</button>'
       +'<button class="btn" type="button" id="doSave">작성 저장</button>'
-      +'<span class="spacer"></span>'+(f.logRow?'<button class="btn danger" type="button" id="cancelReq">신청 취소</button>':'');
+      +'<span class="spacer"></span>'+(f.logRow?'<button class="btn danger" type="button" id="cancelReq">신청 삭제</button>':'');
   }
   return h+'</div>';
 }
@@ -710,8 +723,14 @@ function bindDetail(){
   on('noApply',function(){V.confirm=false;refreshDetail()});
   on('doApply',applyNow);
   var cb=$('#cancelReq'),armed=false;
-  if(cb)cb.addEventListener('click',function(){if(!armed){armed=true;cb.textContent='한 번 더 누르면 취소됩니다';return}
-    f.status='취소';f.doneAt=nowStr();busy(true);Store.saveRequest(f,false).then(function(){toast('신청을 취소했어요.');return reload()}).then(function(){V.confirm=false;V.edit=false;V.msg=''}).catch(fail)});
+  if(cb)cb.addEventListener('click',function(){if(!armed){armed=true;cb.textContent='한 번 더 누르면 완전히 삭제됩니다';return}
+    busy(true);Store.remove([f.no]).then(function(){toast('신청을 삭제했어요. 시트 기록에서도 지웠습니다.');V.confirm=false;V.edit=false;V.msg='';return reload()}).catch(fail)});
+  on('toDraft',function(){f.status='작성';persist('작성').then(function(){V.msg='「작성」 단계로 되돌렸어요. 내용을 고친 뒤 다시 인쇄하세요.';studentsView()}).catch(function(){})});
+  var rb=$('#revertBtn'),rArmed=false;
+  if(rb)rb.addEventListener('click',function(){
+    if(!rArmed){rArmed=true;rb.textContent='한 번 더 누르면 시트를 원래 과목으로 복구합니다';return}
+    var h=histOf(V.cur.id).filter(function(r){return r.status==='접수완료'}),last=h[h.length-1];if(!last)return;
+    busy(true);Store.revert(last,V.cur).then(function(){toast('접수를 되돌렸어요. 시트 과목을 원래대로 복구했습니다.');V.msg='접수를 되돌려 「처리중」이 되었어요.';return reload()}).catch(fail)});
 }
 function refreshDetail(){$('#detail').innerHTML=detailHtml();bindDetail()}
 function busy(on){var d=$('#detail');if(d)d.classList.toggle('busy',on)}
@@ -752,7 +771,8 @@ function requestsView(){
   var ids=Object.keys(V.sel).filter(function(k){return V.sel[k]});
   var h=kpis()+'<section class="panel"><div class="panel-h"><h2>신청 현황</h2><div class="row">'
     +'<button class="btn primary" type="button" id="printSel"'+(ids.length?'':' disabled')+'>선택 인쇄 / PDF 저장 ('+ids.length+')</button>'
-    +'<button class="btn" type="button" id="csv">'+(ids.length?'선택':'전체')+' 엑셀 저장</button></div></div>';
+    +'<button class="btn" type="button" id="csv">'+(ids.length?'선택':'전체')+' 엑셀 저장</button>'
+    +'<button class="btn danger" type="button" id="delSel"'+(ids.length?'':' disabled')+'>선택 삭제</button></div></div>';
   if(!list.length)h+='<div class="empty"><b>아직 신청이 없어요</b><span>「학생」 탭에서 학생을 골라 변경 내용을 작성하세요.</span></div>';
   else h+='<div class="tbl"><table class="t rq"><thead><tr><th><input type="checkbox" id="selAll" aria-label="모두 선택"></th><th>상태</th><th>학번</th><th>이름</th><th>변경 내역</th><th>사유</th><th>처리 선생님</th><th>출력</th><th>접수완료</th></tr></thead><tbody>'
     +list.map(function(r){return '<tr class="click" data-id="'+r.id+'" data-row="'+r.logRow+'"><td><input type="checkbox" class="sel" value="'+r.logRow+'"'+(V.sel[r.logRow]?' checked':'')+' aria-label="'+r.id+' 선택"></td>'
@@ -763,6 +783,14 @@ function requestsView(){
   var all=$('#selAll');if(all)all.addEventListener('change',function(e){list.forEach(function(r){V.sel[r.logRow]=e.target.checked});requestsView()});
   $$('tr.click').forEach(function(tr){tr.addEventListener('click',function(){V.tab='students';select(findSt(tr.getAttribute('data-id')))})});
   $('#csv').addEventListener('click',function(){saveCsv(ids.length?list.filter(function(r){return V.sel[r.logRow]}):list)});
+  var ds=$('#delSel'),dArmed=false;
+  ds.addEventListener('click',function(){
+    var pick=list.filter(function(r){return V.sel[r.logRow]});if(!pick.length)return;
+    if(pick.some(function(r){return r.status==='접수완료'})){toast('접수 완료된 신청은 지울 수 없어요. 학생 화면에서 「접수 되돌리기」를 먼저 해 주세요.');return}
+    if(!dArmed){dArmed=true;ds.textContent='한 번 더 누르면 '+pick.length+'건을 완전히 삭제합니다';return}
+    ds.disabled=true;ds.textContent='삭제 중…';
+    Store.remove(pick.map(function(r){return r.no})).then(function(r){V.sel={};toast((r&&r.removed!=null?r.removed:pick.length)+'건을 삭제했어요.');return reload()}).catch(function(e){toast(errMsg(e));requestsView()});
+  });
   $('#printSel').addEventListener('click',function(){
     var pick=list.filter(function(r){return V.sel[r.logRow]});if(!pick.length)return;
     var drafts=pick.filter(function(r){return r.status==='작성'}),t=nowStr();
