@@ -282,7 +282,6 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
 @keyframes fly{0%{transform:translate(-120%,30%) rotate(-4deg)}25%{transform:translate(40%,-40%) rotate(-7deg)}50%{transform:translate(130%,10%) rotate(3deg)}75%{transform:translate(230%,-50%) rotate(-6deg)}100%{transform:translate(360%,-10%) rotate(0)}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes gallop{0%,100%{transform:rotate(2deg) translateY(1px)}50%{transform:rotate(-6deg) translateY(-2px)}}
-@media (prefers-reduced-motion:reduce){.xmas-scene *,.sky-deco *{animation:none!important}.sky-deco .sleigh{transform:translateX(60%)}}
 @media print{.xmas-scene,.sky-deco{display:none!important}}
 @media (max-width:640px){.arch{height:290px!important}.arch::before{top:42%}.sky-deco{height:42%}.sky-deco .sleigh{width:28%;top:26%}.sky-deco .moon{width:18px;height:18px;top:16%}}
 
@@ -302,7 +301,7 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
 .music-btn i{display:inline-block;width:3px;height:12px;background:var(--ink);border-radius:2px;animation:eq 1.1s ease-in-out infinite;transform-origin:bottom}
 .music-btn i:nth-of-type(2){animation-delay:.25s}.music-btn i:nth-of-type(3){animation-delay:.5s}
 @keyframes eq{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
-@media (prefers-reduced-motion:reduce){.music-btn i{animation:none}}
+
 @media print{.music-btn{display:none!important}}
 @media (max-width:640px){body.authed .music-btn{bottom:calc(74px + env(safe-area-inset-bottom,0px));right:12px;height:38px;min-width:38px;padding:0 10px}}
 
