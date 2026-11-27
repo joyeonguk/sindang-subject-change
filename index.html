@@ -302,6 +302,38 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
   .conn .btn{flex:none!important;width:auto}
 }
 
+/* 오른쪽 위 달력 */
+.mini-cal{align-self:flex-end;width:232px;margin-bottom:6px;padding:12px 14px 10px;background:var(--surface);border:1px solid var(--line);border-radius:6px;
+  box-shadow:0 8px 22px -16px rgba(60,45,30,.45);font-size:12px;color:var(--ink-2);position:relative}
+.mini-cal::before{content:"";position:absolute;top:-5px;left:50%;width:46px;height:10px;margin-left:-23px;border-radius:3px;
+  background:repeating-linear-gradient(90deg,#c0392b 0 8px,#f7f3ed 8px 14px,#4b8566 14px 22px,#f7f3ed 22px 28px);opacity:.85}
+.mc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.mc-t{display:flex;align-items:baseline;gap:6px}
+.mc-t b{font-family:var(--f-serif);font-weight:400;font-size:18px;color:var(--ink)}
+.mc-t span{font-family:var(--f-latin);font-size:13px;color:var(--ink-3)}
+.mc-nav{border:0;background:transparent;width:26px;height:26px;border-radius:50%;cursor:pointer;color:var(--ink-2);font-size:18px;line-height:1}
+.mc-nav:hover{background:var(--sunk)}
+.mc-g{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px;text-align:center}
+.mc-g span{height:26px;line-height:26px;font-variant-numeric:tabular-nums;position:relative}
+.mc-w{font-size:11px;color:var(--ink-3)}
+.mc-g .sun{color:#b0453a}.mc-g .sat{color:#4a6f8a}
+.mc-d.per{background:var(--done-weak)}
+.mc-d.ps{border-radius:13px 0 0 13px}.mc-d.pe{border-radius:0 13px 13px 0}
+.mc-d.xmas::after{content:"★";position:absolute;top:-6px;right:0;font-size:9px;color:#d9a52b}
+.mc-d.today{color:var(--accent-ink)!important;font-weight:500}
+.mc-d.today::before{content:"";position:absolute;inset:1px 3px;border-radius:50%;background:var(--ink);z-index:-1}
+.mc-g{isolation:isolate}
+.mc-k{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;padding-top:7px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-3)}
+.mc-k span{display:inline-flex;align-items:center;gap:4px}
+.mc-k .k-per{display:inline-block;width:14px;height:8px;border-radius:4px;background:var(--done-weak);border:1px solid #bfd3bf}
+.mc-k .k-x{font-style:normal;color:#d9a52b}
+@media (min-width:981px) and (max-width:1199px){.title-col{justify-content:flex-start;padding-top:0}.mini-cal{margin-bottom:14px}}
+@media (min-width:1200px){.mini-cal{position:absolute;top:22px;right:0;width:214px;margin:0}.title-col > :not(.mini-cal){padding-right:236px}.title-col .conn{padding-right:0;margin-right:0}.mc-g span{height:24px;line-height:24px}.mc-k{flex-wrap:nowrap;gap:8px;font-size:10.5px;white-space:nowrap}.mc-d.ps{border-radius:12px 0 0 12px}.mc-d.pe{border-radius:0 12px 12px 0}}
+@media (max-width:980px){.mini-cal{order:10;align-self:flex-start;margin:14px 0 0}}
+@media (max-width:980px){.xmas-mini{top:auto;bottom:6px}.title-col .display,.title-col .idx{padding-right:0}.title-col .sub{padding-right:92px}}
+@media (max-width:640px){.mini-cal{display:none}.xmas-mini{top:2px;bottom:auto}}
+@media print{.mini-cal{display:none!important}}
+
 /* 음악 버튼 */
 .music-btn{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:25;
   height:44px;min-width:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);
@@ -496,6 +528,7 @@ body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-durati
     </div>
   </div>
   <div class="title-col">
+    <div class="mini-cal" id="miniCal" aria-label="달력"></div>
     <div class="idx" id="heroIdx">01 / 04</div>
     <h1 class="display">선택과목 <br>변경 관리</h1>
     <p class="sub" id="brandSub">천안신당고등학교 교육과정부</p>
@@ -1293,6 +1326,32 @@ var Music=(function(){
 /* 휴대폰·좁은 화면: 제목 옆 작은 트리와 루돌프 */
 (function(){var t=$('.xmas-scene .tree'),r=$('.xmas-scene .rudolph');if(!t||!r)return;
   var m=document.createElement('div');m.className='xmas-mini';m.setAttribute('aria-hidden','true');m.innerHTML=t.outerHTML+r.outerHTML;$('.title-col').appendChild(m)})();
+
+/* ════════ 오른쪽 위 달력 ════════ */
+var CAL_PERIOD=['2026-12-07','2026-12-23']; // 선택과목 변경 신청 기간 (안내문)
+var CAL_VIEW=(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth()}})();
+function renderCal(){
+  var el=$('#miniCal');if(!el)return;
+  var y=CAL_VIEW.y,m=CAL_VIEW.m,first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),today=todayStr();
+  var h='<div class="mc-h"><button type="button" class="mc-nav" data-mc="-1" aria-label="이전 달">‹</button>'
+    +'<div class="mc-t"><b>'+(m+1)+'월</b><span>'+y+'</span></div>'
+    +'<button type="button" class="mc-nav" data-mc="1" aria-label="다음 달">›</button></div>'
+    +'<div class="mc-g">'+['일','월','화','수','목','금','토'].map(function(w,i){return '<span class="mc-w'+(i===0?' sun':i===6?' sat':'')+'">'+w+'</span>'}).join('');
+  for(var i=0;i<first;i++)h+='<span></span>';
+  for(var d=1;d<=days;d++){
+    var ds=y+'-'+pad2(m+1)+'-'+pad2(d),wd=(first+d-1)%7,cls='mc-d';
+    if(wd===0)cls+=' sun';if(wd===6)cls+=' sat';
+    if(ds>=CAL_PERIOD[0]&&ds<=CAL_PERIOD[1])cls+=' per'+(ds===CAL_PERIOD[0]?' ps':'')+(ds===CAL_PERIOD[1]?' pe':'');
+    if(m===11&&d===25)cls+=' xmas';
+    if(ds===today)cls+=' today';
+    h+='<span class="'+cls+'"'+(ds===today?' aria-current="date"':'')+'>'+d+'</span>';
+  }
+  h+='</div><div class="mc-k"><span><i class="k-per"></i>변경 신청 12.7.–12.23.</span><span><i class="k-x">★</i>크리스마스</span></div>';
+  el.innerHTML=h;
+  $$('[data-mc]',el).forEach(function(b){b.addEventListener('click',function(e){e.stopPropagation();CAL_VIEW.m+=+b.getAttribute('data-mc');
+    if(CAL_VIEW.m<0){CAL_VIEW.m=11;CAL_VIEW.y--}if(CAL_VIEW.m>11){CAL_VIEW.m=0;CAL_VIEW.y++}renderCal()})});
+}
+renderCal();
 
 /* ════════ 시작 ════════ */
 $('#brandSub').textContent='천안신당고등학교 교육과정부'+(CFG.auth?' · '+P.label:'');
