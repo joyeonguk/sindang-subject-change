@@ -436,8 +436,8 @@ function call(fn,extra,pw,grade){
         if(SV<3)throw new Error('Apps Script에 아주 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.')}
       return j.data});
 }
-var API_VERSION=4,SV=+lsGet('sc.ver','0')||0; // SV: 지금 배포된 연결 통로 버전
-function verNote(){return (!DEMO&&SV&&SV<API_VERSION)?'<div class="info">연결 통로(Apps Script)가 <b>버전 '+SV+'</b>로 배포되어 있어요. 작성·인쇄·접수는 그대로 되고, <b>삭제·되돌리기</b>는 버전 '+API_VERSION+' 코드를 붙여 넣고 「배포 관리 → ✏️ 수정 → 새 버전 → 배포」를 한 뒤에 쓸 수 있어요.</div>':''}
+var API_VERSION=6,SV=+lsGet('sc.ver','0')||0; // SV: 지금 배포된 연결 통로 버전
+function verNote(){return (!DEMO&&SV&&SV<API_VERSION)?'<div class="info">연결 통로(Apps Script)가 <b>버전 '+SV+'</b>로 배포되어 있어요. 작성·인쇄·접수는 그대로 되고, <b>삭제·되돌리기(접수완료 삭제 시 원래 과목 복구 포함)</b>는 버전 '+API_VERSION+' 코드를 붙여 넣고 「배포 관리 → ✏️ 수정 → 새 버전 → 배포」를 한 뒤에 쓸 수 있어요.</div>':''}
 var Api={
   check:function(pw,grade){return call('ping',{},pw,grade)},
   load:function(){return call('load',{})},
@@ -486,7 +486,8 @@ var Demo=(function(){
       s.raw1=after.sem1.slice();s.raw2=after.sem2.slice();req=clone(req);req.status='접수완료';req.doneAt=nowStr();req.doneBy=CFG.teacher;req.after=after;
       requests=requests.map(function(x){return x.logRow===req.logRow?clone(req):x});setTimeout(res,250)})},
     remove:function(nos){return new Promise(function(res,rej){
-      if(requests.some(function(x){return nos.indexOf(x.no)>=0&&x.status==='접수완료'}))return rej(new Error('접수 완료된 신청은 지울 수 없습니다. 먼저 「접수 되돌리기」를 해 주세요.'));
+      requests.filter(function(x){return nos.indexOf(x.no)>=0&&x.status==='접수완료'&&x.after}).sort(function(a,b){return b.logRow-a.logRow}).forEach(function(x){
+        var s=students.filter(function(y){return y.id===x.id})[0];if(s){s.raw1=x.before.sem1.slice();s.raw2=x.before.sem2.slice()}});
       var n=requests.length;requests=requests.filter(function(x){return nos.indexOf(x.no)<0});requests.forEach(function(x,i){x.logRow=i+2});setTimeout(function(){res({removed:n-requests.length})},200)})},
     revert:function(req,st){return new Promise(function(res,rej){
       var q=requests.filter(function(x){return x.no===req.no})[0],s=students.filter(function(x){return x.id===st.id})[0];
@@ -509,6 +510,7 @@ function reload(){
   D.loading=true;D.err='';render();
   if(!DEMO)Api.check(CFG.pw,CFG.grade).then(function(){if(D.loaded)render()},function(){});
   return Store.load().then(function(d){D.students=d.students;D.requests=d.requests;D.loaded=true;D.loading=false;
+    if(d.restored&&d.restored.length)toast('시트에서 지운 접수완료 신청 '+d.restored.length+'건: '+d.restored.join(', ')+' 과목을 원래대로 되돌렸어요.');
     if(V.cur){var s=findSt(V.cur.id);V.cur=s;if(s)loadForm(s)}render()})
     .catch(function(e){D.loading=false;D.err=errMsg(e);render()});
 }
@@ -649,8 +651,8 @@ function detailHtml(){
   var hist=histOf(s.id);
   var lastDone=null;hist.forEach(function(r){if(r.status==='접수완료')lastDone=r});
   if(hist.length)h+='<div><div class="eyebrow" style="margin-bottom:8px">지난 처리</div><div class="hist">'+hist.map(function(r){return '<div><span class="st st-'+r.status+'">'+r.status+'</span><span class="num">'+esc(r.doneAt||r.printedAt||r.createdAt)+'</span><span>'+esc(r.doneBy?r.doneBy+' 선생님':'')+'</span><span class="pre">'+esc(summary(r).replace(/\n/g,' · '))+'</span>'
-    +(r===lastDone&&!st?'<button class="btn ghost small" type="button" id="revertBtn">↶ 접수 되돌리기</button>':'')+'</div>'}).join('')+'</div>'
-    +(lastDone&&!st?'<p class="small muted" id="revertNote" style="margin-top:6px">접수 되돌리기: 시트 과목을 바뀌기 전으로 복구하고 「처리중」으로 돌립니다.</p>':'')+'</div>';
+    +(r===lastDone&&!st?'<button class="btn ghost small" type="button" id="revertBtn">↶ 접수 되돌리기</button><button class="btn danger small" type="button" id="delDone">삭제(원래 과목으로)</button>':'')+'</div>'}).join('')+'</div>'
+    +(lastDone&&!st?'<p class="small muted" id="revertNote" style="margin-top:6px">접수 되돌리기: 시트 과목을 바뀌기 전으로 복구하고 「처리중」으로 돌립니다.<br>삭제(원래 과목으로): 시트 과목을 바뀌기 전으로 복구하고 이 신청 기록을 지웁니다.</p>':'')+'</div>';
   if(V.confirm){
     var a=afterOf(s,f.changes);
     h+='<div class="confirm" role="alertdialog" aria-label="시트 반영 확인"><b>보호자 서명본을 받으셨나요? 아래 내용이 시트에 바로 반영됩니다.</b><ul>'
@@ -729,6 +731,11 @@ function bindDetail(){
   if(cb)cb.addEventListener('click',function(){if(!armed){armed=true;cb.textContent='한 번 더 누르면 완전히 삭제됩니다';return}
     busy(true);Store.remove([f.no]).then(function(){toast('신청을 삭제했어요. 시트 기록에서도 지웠습니다.');V.confirm=false;V.edit=false;V.msg='';return reload()}).catch(fail)});
   on('toDraft',function(){f.status='작성';persist('작성').then(function(){V.msg='「작성」 단계로 되돌렸어요. 내용을 고친 뒤 다시 인쇄하세요.';studentsView()}).catch(function(){})});
+  var dd=$('#delDone'),ddArmed=false;
+  if(dd)dd.addEventListener('click',function(){
+    if(!ddArmed){ddArmed=true;dd.textContent='한 번 더 누르면 원래 과목으로 되돌리고 삭제합니다';return}
+    var h=histOf(V.cur.id).filter(function(r){return r.status==='접수완료'}),last=h[h.length-1];if(!last)return;
+    busy(true);Store.remove([last.no]).then(function(r){toast('신청을 삭제하고 시트 과목을 원래대로 되돌렸어요.');V.msg='';return reload()}).catch(fail)});
   var rb=$('#revertBtn'),rArmed=false;
   if(rb)rb.addEventListener('click',function(){
     if(!rArmed){rArmed=true;rb.textContent='한 번 더 누르면 시트를 원래 과목으로 복구합니다';return}
@@ -789,10 +796,10 @@ function requestsView(){
   var ds=$('#delSel'),dArmed=false;
   ds.addEventListener('click',function(){
     var pick=list.filter(function(r){return V.sel[r.logRow]});if(!pick.length)return;
-    if(pick.some(function(r){return r.status==='접수완료'})){toast('접수 완료된 신청은 지울 수 없어요. 학생 화면에서 「접수 되돌리기」를 먼저 해 주세요.');return}
-    if(!dArmed){dArmed=true;ds.textContent='한 번 더 누르면 '+pick.length+'건을 완전히 삭제합니다';return}
+    var nd=pick.filter(function(r){return r.status==='접수완료'}).length;
+    if(!dArmed){dArmed=true;ds.textContent='한 번 더 누르면 '+pick.length+'건 삭제'+(nd?' (접수완료 '+nd+'건은 시트 과목을 원래대로 복구)':'');return}
     ds.disabled=true;ds.textContent='삭제 중…';
-    Store.remove(pick.map(function(r){return r.no})).then(function(r){V.sel={};toast((r&&r.removed!=null?r.removed:pick.length)+'건을 삭제했어요.');return reload()}).catch(function(e){toast(errMsg(e));requestsView()});
+    Store.remove(pick.map(function(r){return r.no})).then(function(r){V.sel={};toast((r&&r.removed!=null?r.removed:pick.length)+'건을 삭제했어요.'+(r&&r.restored?' 시트 과목 '+r.restored+'명을 원래대로 되돌렸어요.':''));return reload()}).catch(function(e){toast(errMsg(e));requestsView()});
   });
   $('#printSel').addEventListener('click',function(){
     var pick=list.filter(function(r){return V.sel[r.logRow]});if(!pick.length)return;

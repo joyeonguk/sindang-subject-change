@@ -40,6 +40,7 @@ function doPost(e) {
     if (String(q.pw || '') !== String(g.pw)) throw new Error(q.grade + '학년 담임교사 비밀번호가 맞지 않습니다.');
     const fn = { ping: ping, load: load, save: save, apply: apply, remove: remove, revert: revert }[q.fn];
     if (!fn) throw new Error('알 수 없는 요청입니다.');
+    ensureTriggers_();
     out = { ok: true, data: fn(q) };
   } catch (err) {
     out = { ok: false, error: String(err && err.message ? err.message : err) };
@@ -103,11 +104,14 @@ function fromRow_(v, i) {
 }
 
 // ───────── 요청 ─────────
-const VERSION = 4; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
+const VERSION = 6; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
 function ping(q) { db_(q.grade); return { grade: q.grade, tab: cfg_(q.grade).tab, version: VERSION }; }
 
 /** 학생 전체(학번순)와 변경 기록 */
 function load(q) {
+  const lock0 = LockService.getScriptLock();
+  let restored = [];
+  if (lock0.tryLock(20000)) { try { restored = reconcile_(q.grade); } finally { lock0.releaseLock(); } }
   const c = cfg_(q.grade), sh = db_(q.grade), width = 1 + c.n1 + c.n2;
   // 마지막 학생 행은 A열 기준. 서명(이미지)·비밀번호 칸은 무거우므로 읽지 않습니다.
   const colA = sh.getRange(1, 1, sh.getMaxRows(), 1).getDisplayValues();
@@ -126,6 +130,7 @@ function load(q) {
   const lg = log_(q.grade), ln = lg.getLastRow();
   const lv = ln > 1 ? lg.getRange(2, 1, ln - 1, LOG_HEAD.length).getDisplayValues() : [];
   return {
+    restored: restored,
     students: Object.keys(byId).sort().map(function (k) { return byId[k]; }),
     requests: lv.map(function (r, i) { return r[0] ? fromRow_(r, i + 2) : null; }).filter(Boolean)
   };
@@ -170,22 +175,52 @@ function save(q) {
   } finally { lock.releaseLock(); }
 }
 
-/** 신청 완전 삭제: 「변경신청」 탭에서 그 줄을 지웁니다. 접수완료는 먼저 되돌려야 지울 수 있습니다. */
+/** 학번으로 DB 탭의 학생 행을 찾습니다. */
+function studentRow_(sh, id) {
+  const a = sh.getRange(1, 1, sh.getMaxRows(), 1).getDisplayValues();
+  for (let i = 1; i < a.length; i++) if (String(a[i][0]).trim().slice(0, 5) === String(id)) return i + 1;
+  return 0;
+}
+
+/** 신청 완전 삭제: 「변경신청」 탭에서 줄을 지웁니다.
+ *  접수완료 신청은 DB 탭의 그 학생 과목을 바뀌기 전으로 되돌린 뒤 지웁니다. */
 function remove(q) {
   teacher_(q);
-  const nos = [].concat(q.nos || []).map(String), lock = LockService.getScriptLock();
+  const c = cfg_(q.grade), nos = [].concat(q.nos || []).map(String), lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    const lg = log_(q.grade);
-    const rows = [];
+    const lg = log_(q.grade), sh = db_(q.grade), width = 1 + c.n1 + c.n2;
+    const items = [];
     nos.forEach(function (no) {
       const row = findRow_(lg, no);
-      if (!row) return; // 이미 지워짐
-      if (lg.getRange(row, L['상태'] + 1).getDisplayValue() === '접수완료') throw new Error('접수 완료된 신청은 지울 수 없습니다. 먼저 「접수 되돌리기」를 해 주세요.');
-      rows.push(row);
+      if (row) items.push(fromRow_(lg.getRange(row, 1, 1, LOG_HEAD.length).getDisplayValues()[0], row));
     });
-    rows.sort(function (a, b) { return b - a; }).forEach(function (row) { lg.deleteRow(row); });
-    return { removed: rows.length };
+    // 1) 확인: 접수완료는 지금 시트 과목이 '변경 후'와 같아야 되돌릴 수 있습니다. (같은 학생은 최근 것부터)
+    const restores = [], cur = {};
+    items.filter(function (r) { return r.status === '접수완료' && r.after; })
+      .sort(function (a, b) { return b.logRow - a.logRow; })
+      .forEach(function (r) {
+        if (!cur[r.id]) {
+          const row = studentRow_(sh, r.id);
+          if (!row) throw new Error(r.id + ' ' + r.name + ' 학생을 시트에서 찾지 못해 되돌릴 수 없습니다.');
+          const v = readRow_(sh, row, width);
+          cur[r.id] = { row: row, s1: pad_(v.slice(1, 1 + c.n1), c.n1), s2: pad_(v.slice(1 + c.n1, width), c.n2) };
+        }
+        const k = cur[r.id];
+        if (!same_(k.s1, r.after.sem1) || !same_(k.s2, r.after.sem2)) {
+          throw new Error(r.id + ' ' + r.name + ' 학생은 접수 뒤에 시트 과목이 또 바뀌어서 자동으로 되돌릴 수 없습니다. 시트에서 직접 확인해 주세요. (아무것도 지우지 않았습니다)');
+        }
+        k.s1 = pad_(r.before.sem1, c.n1); k.s2 = pad_(r.before.sem2, c.n2); k.dirty = true;
+      });
+    // 2) 시트 과목 되돌리기
+    Object.keys(cur).forEach(function (id) {
+      const k = cur[id];
+      if (k.dirty) { sh.getRange(k.row, 2, 1, c.n1 + c.n2).setValues([k.s1.concat(k.s2)]); restores.push(id); }
+    });
+    // 3) 기록 줄 지우기 (아래쪽부터)
+    items.map(function (r) { return r.logRow; }).sort(function (a, b) { return b - a; }).forEach(function (row) { lg.deleteRow(row); });
+    items.forEach(function (r) { dropSnap_(q.grade, r.no); });
+    return { removed: items.length, restored: restores.length };
   } finally { lock.releaseLock(); }
 }
 
@@ -212,6 +247,7 @@ function apply(q) {
     });
     sh.getRange(row, 2, 1, c.n1 + c.n2).setValues([a1.concat(a2)]);
     r.after = { sem1: a1, sem2: a2 }; r.status = '접수완료'; r.doneAt = now_(); r.doneBy = t;
+    saveSnap_(q.grade, r);
     if (!r.createdBy) r.createdBy = t;
     lg.getRange(logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(r)]);
     r.logRow = logRow;
@@ -237,7 +273,74 @@ function revert(q) {
     if (!same_(s1, saved.after.sem1) || !same_(s2, saved.after.sem2)) throw new Error('접수 뒤에 시트의 이 학생 과목이 또 바뀌어서 자동으로 되돌릴 수 없습니다. 시트에서 직접 확인해 주세요.');
     sh.getRange(row, 2, 1, c.n1 + c.n2).setValues([pad_(saved.before.sem1, c.n1).concat(pad_(saved.before.sem2, c.n2))]);
     saved.status = '처리중'; saved.after = null; saved.doneAt = ''; saved.doneBy = '';
+    dropSnap_(q.grade, saved.no);
     lg.getRange(logRow, 1, 1, LOG_HEAD.length).setValues([toRow_(saved)]);
     return saved;
   } finally { lock.releaseLock(); }
+}
+
+// ───────── 시트에서 직접 지웠을 때 원래 과목으로 되돌리기 ─────────
+// 접수 완료 때 「바뀌기 전 → 바뀐 뒤」 과목을 따로 보관합니다(스크립트 속성).
+// 「변경신청」 탭에서 그 줄이 사라지면, DB 탭 과목이 아직 '바뀐 뒤' 그대로일 때만 '바뀌기 전'으로 되돌립니다.
+const props = PropertiesService.getScriptProperties();
+function snapKey_(grade, no) { return 'D' + grade + '_' + no; }
+function saveSnap_(grade, r) { props.setProperty(snapKey_(grade, r.no), JSON.stringify({ id: r.id, name: r.name, before: r.before, after: r.after })); }
+function dropSnap_(grade, no) { props.deleteProperty(snapKey_(grade, no)); }
+
+/** 보관본과 「변경신청」 탭을 맞춰 봅니다. 되돌린 학생 목록을 돌려줍니다. */
+function reconcile_(grade) {
+  const c = cfg_(grade), lg = log_(grade), sh = db_(grade), width = 1 + c.n1 + c.n2, pre = 'D' + grade + '_';
+  const all = props.getProperties(), ln = lg.getLastRow();
+  const rows = ln > 1 ? lg.getRange(2, 1, ln - 1, LOG_HEAD.length).getDisplayValues() : [];
+  const present = {};
+  rows.forEach(function (v, i) { if (v[0]) present[String(v[0])] = fromRow_(v, i + 2); });
+  const restored = [];
+  Object.keys(all).filter(function (k) { return k.indexOf(pre) === 0; }).forEach(function (k) {
+    const no = k.slice(pre.length), p = present[no];
+    if (p && p.status === '접수완료') return; // 아직 남아 있음
+    if (!p) {
+      const s = JSON.parse(all[k]), row = studentRow_(sh, s.id);
+      if (row && s.after) {
+        const v = readRow_(sh, row, width);
+        const s1 = pad_(v.slice(1, 1 + c.n1), c.n1), s2 = pad_(v.slice(1 + c.n1, width), c.n2);
+        if (same_(s1, s.after.sem1) && same_(s2, s.after.sem2)) {
+          sh.getRange(row, 2, 1, c.n1 + c.n2).setValues([pad_(s.before.sem1, c.n1).concat(pad_(s.before.sem2, c.n2))]);
+          restored.push(s.id + ' ' + s.name);
+        }
+      }
+    }
+    props.deleteProperty(k);
+  });
+  // 예전에 접수된 기록도 보관본으로 등록
+  Object.keys(present).forEach(function (no) {
+    const p = present[no];
+    if (p.status === '접수완료' && p.after && !all[pre + no]) saveSnap_(grade, p);
+  });
+  return restored;
+}
+
+/** 시트가 바뀔 때마다 자동 실행 (설치형 트리거) */
+function onSheetChange(e) {
+  const id = e && e.source ? e.source.getId() : '';
+  Object.keys(SHEETS).forEach(function (g) {
+    if (SHEETS[g].id !== id) return;
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(20000)) return;
+    try { reconcile_(g); } finally { lock.releaseLock(); }
+  });
+}
+
+/** 두 시트에 자동 실행을 걸어 둡니다. 처음 요청 때 한 번 실행되며, 편집기에서 직접 실행해도 됩니다. */
+function 자동되돌리기_설치() {
+  const have = ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'onSheetChange'; })
+    .map(function (t) { return t.getTriggerSourceId(); });
+  Object.keys(SHEETS).forEach(function (g) {
+    if (have.indexOf(SHEETS[g].id) < 0) ScriptApp.newTrigger('onSheetChange').forSpreadsheet(SHEETS[g].id).onChange().create();
+  });
+  props.setProperty('TRIG_OK', '1');
+  return '자동 되돌리기가 설치되었습니다.';
+}
+function ensureTriggers_() {
+  if (props.getProperty('TRIG_OK') === '1') return;
+  try { 자동되돌리기_설치(); } catch (e) { /* 권한이 없으면 페이지를 열 때 맞춰 봅니다 */ }
 }
