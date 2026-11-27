@@ -444,14 +444,14 @@ function render(){
 /* ════════ 첫 화면 ════════ */
 var G={grade:lsGet('sc.lastGrade','1'),err:'',busy:false,name:lsGet('sc.teacher',''),pw:lsGet('sc.pw','')};
 function gateView(){
-  var card=function(g){var pr=PROFILES[g];return '<button type="button" class="gcard" data-g="'+g+'" aria-pressed="'+(G.grade===g)+'"><span class="gn">0'+g+'</span><span class="gt">'+g+'학년 담임교사</span><span class="gs">'+esc(pr.label)+'</span><span class="gs muted">「'+esc(pr.tab)+'」 시트</span></button>'};
-  page.innerHTML='<section class="gate"><div class="gate-h"><div class="eyebrow">들어가기</div><h2>어느 학년 담임이신가요?</h2><p class="muted">학년을 고르면 그 학년 과목선택 시트가 열립니다.</p></div>'
+  var card=function(g){var pr=PROFILES[g];return '<button type="button" class="gcard" data-g="'+g+'" aria-pressed="'+(G.grade===g)+'"><span class="gt">'+g+'학년 담임교사</span><span class="gs">'+esc(pr.label)+'</span></button>'};
+  page.innerHTML='<section class="gate"><div class="gate-h"><div class="eyebrow">들어가기</div><h2>어느 학년 담임이신가요?</h2></div>'
     +'<div class="gcards">'+card('1')+card('2')+'</div>'
     +'<form class="gform" id="gform" autocomplete="on"><label class="f">선생님 성함<input type="text" id="gName" value="'+esc(G.name)+'" placeholder="예: 김신당" autocomplete="name"></label>'
     +'<label class="f">교사 비밀번호'+(DEMO?' <span class="muted">(미리보기는 아무 값이나)</span>':'')+'<input type="password" id="gPw" value="'+esc(G.pw)+'" autocomplete="current-password"></label>'
     +(G.err?'<div class="err" role="alert">'+esc(G.err)+'</div>':'')
-    +'<button class="btn primary lg" type="submit"'+(G.busy?' disabled':'')+'>'+(G.busy?'확인 중…':G.grade+'학년 시트 열기')+'</button>'
-    +'<p class="small muted">성함은 변경 신청을 작성·출력·접수할 때 기록됩니다. 이 기기에서는 다음부터 바로 들어갑니다.</p></form></section>';
+    +'<button class="btn primary lg" type="submit"'+(G.busy?' disabled':'')+'>'+(G.busy?'확인 중…':G.grade+'학년 담임선생님 입장')+'</button>'
+    +'</form></section>';
   var keepIn=function(){G.name=$('#gName').value;G.pw=$('#gPw').value};
   $('#gName').addEventListener('input',keepIn);$('#gPw').addEventListener('input',keepIn);
   $$('.gcard').forEach(function(b){b.addEventListener('click',function(){keepIn();G.grade=b.getAttribute('data-g');G.err='';gateView()})});
