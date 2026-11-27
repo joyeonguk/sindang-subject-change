@@ -337,10 +337,18 @@ function call(fn,extra,pw,grade){
   var body={fn:fn,pw:pw==null?CFG.pw:pw,grade:grade||CFG.grade,teacher:CFG.teacher};
   for(var k in extra)body[k]=extra[k];
   // text/plain 본문이라 별도 사전 요청 없이 Apps Script가 받습니다.
-  return fetch(API_URL,{method:'POST',body:JSON.stringify(body)})
-    .then(function(r){return r.json()},function(){throw new Error('연결 통로에 닿지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.')})
-    .then(function(j){if(!j.ok)throw new Error(j.error||'요청을 처리하지 못했어요.');return j.data});
+  var ctl=window.AbortController?new AbortController():null,timer=ctl&&setTimeout(function(){ctl.abort()},90000);
+  return fetch(API_URL,{method:'POST',body:JSON.stringify(body),signal:ctl?ctl.signal:undefined})
+    .then(function(r){return r.text()},function(e){
+      throw new Error(e&&e.name==='AbortError'?'시트 응답이 90초 넘게 없어요. 잠시 후 「다시 시도」를 눌러 주세요.':'연결 통로에 닿지 못했어요. 인터넷 연결을 확인해 주세요. Apps Script 배포의 액세스가 「모든 사용자」인지도 확인해 주세요.')})
+    .then(function(t){
+      if(timer)clearTimeout(timer);
+      var j;try{j=JSON.parse(t)}catch(e){throw new Error('연결 통로가 오류 화면을 돌려줬어요. Apps Script 코드를 붙여 넣은 뒤 「새 버전」으로 배포했는지 확인해 주세요. ('+String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,120)+')')}
+      if(!j.ok)throw new Error(j.error||'요청을 처리하지 못했어요.');
+      if(fn==='ping'&&(!j.data||j.data.version!==API_VERSION))throw new Error('Apps Script에 예전 코드가 배포되어 있어요. 새 코드를 붙여 넣고 「배포 관리 → 수정 → 새 버전」으로 다시 배포해 주세요.');
+      return j.data});
 }
+var API_VERSION=3;
 var Api={
   check:function(pw,grade){return call('ping',{},pw,grade)},
   load:function(){return call('load',{})},

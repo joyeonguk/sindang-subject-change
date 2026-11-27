@@ -103,20 +103,25 @@ function fromRow_(v, i) {
 }
 
 // ───────── 요청 ─────────
-function ping(q) { cfg_(q.grade); return { grade: q.grade, tab: cfg_(q.grade).tab }; }
+const VERSION = 3; // 웹 페이지가 이 번호로 최신 코드가 배포됐는지 확인합니다.
+function ping(q) { db_(q.grade); return { grade: q.grade, tab: cfg_(q.grade).tab, version: VERSION }; }
 
 /** 학생 전체(학번순)와 변경 기록 */
 function load(q) {
-  const c = cfg_(q.grade), sh = db_(q.grade), last = sh.getLastRow();
-  const width = Math.max(1 + c.n1 + c.n2, c.sciCol || 0);
+  const c = cfg_(q.grade), sh = db_(q.grade), width = 1 + c.n1 + c.n2;
+  // 마지막 학생 행은 A열 기준. 서명(이미지)·비밀번호 칸은 무거우므로 읽지 않습니다.
+  const colA = sh.getRange(1, 1, sh.getMaxRows(), 1).getDisplayValues();
+  let last = colA.length;
+  while (last > 1 && !String(colA[last - 1][0]).trim()) last--;
   const v = last > 1 ? sh.getRange(2, 1, last - 1, width).getDisplayValues() : [];
+  const sci = (c.sciCol && last > 1) ? sh.getRange(2, c.sciCol, last - 1, 1).getDisplayValues() : [];
   const byId = {};
   v.forEach(function (r, i) {
     const m = String(r[0] || '').trim().match(/^(\d{5})\s*(.+)$/);
     if (!m) return;
     byId[m[1]] = { id: m[1], name: m[2].trim(), row: i + 2,
-      raw1: pad_(r.slice(1, 1 + c.n1), c.n1), raw2: pad_(r.slice(1 + c.n1, 1 + c.n1 + c.n2), c.n2),
-      science: c.sciCol ? String(r[c.sciCol - 1] || '').trim() : '' };
+      raw1: pad_(r.slice(1, 1 + c.n1), c.n1), raw2: pad_(r.slice(1 + c.n1, width), c.n2),
+      science: sci[i] ? String(sci[i][0] || '').trim() : '' };
   });
   const lg = log_(q.grade), ln = lg.getLastRow();
   const lv = ln > 1 ? lg.getRange(2, 1, ln - 1, LOG_HEAD.length).getDisplayValues() : [];
