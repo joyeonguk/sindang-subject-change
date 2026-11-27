@@ -628,9 +628,22 @@ function studentsView(){
   bindDetail();
 }
 function select(s){V.cur=s;V.confirm=false;V.edit=false;V.msg='';loadForm(s);studentsView();if(window.innerWidth<900)window.scrollTo(0,$('#detail').getBoundingClientRect().top+window.scrollY-12)}
+/** 시트 정보로 과학중점·체육특성화 기본값을 정합니다. */
+function hasTag(s,tag){
+  return [1,2].some(function(sem){return (sem===1?s.raw1:s.raw2).some(function(x){var i=subjInfo(sem,x);return i&&i[2]===tag})});
+}
+function defaultsOf(s){
+  var v=String(s.science||'').trim(),sci;
+  if(/^(예|네|o|y|yes|희망|○)$/i.test(v))sci='O';
+  else if(/^(아니오|아니요|x|n|no|미희망|×)$/i.test(v))sci='X';
+  else sci=hasTag(s,'sci')&&!P.sciCol?'O':(P.sciCol?'':'X');
+  return {science:sci,pe:hasTag(s,'pe')?'O':'X',
+    sciWhy:P.sciCol?(v?'시트 과학중점 「'+v+'」':'시트에 과학중점 값 없음'):(sci==='O'?'과학 진로(*) 과목 이수 중':'과학 진로(*) 과목 없음'),
+    peWhy:hasTag(s,'pe')?'체육 전공실기 이수 중':'체육 전공실기 없음'};
+}
 function loadForm(s){
-  var o=openReq(s.id);
-  V.form=o?JSON.parse(JSON.stringify(o)):{no:'',id:s.id,name:s.name,status:'',changes:[{sem:'',from:'',to:''}],reason:'',science:'',pe:'',date:todayStr(),createdAt:'',printedAt:'',doneAt:'',before:null,after:null,logRow:0};
+  var o=openReq(s.id),d=defaultsOf(s);
+  V.form=o?JSON.parse(JSON.stringify(o)):{no:'',id:s.id,name:s.name,status:'',changes:[{sem:'',from:'',to:''}],reason:'',science:d.science,pe:d.pe,date:todayStr(),createdAt:'',printedAt:'',doneAt:'',before:null,after:null,logRow:0};
   if(!V.form.changes.length)V.form.changes=[{sem:'',from:'',to:''}];
 }
 function afterOf(s,changes){
@@ -654,7 +667,8 @@ function detailHtml(){
   if(locked){
     h+='<div><div class="eyebrow" style="margin-bottom:8px">출력한 변경 내용</div><div class="info pre">'+esc(summary(f))+(f.reason?'\n사유: '+esc(f.reason):'')+'</div></div>';
   }else{
-    h+='<div class="fields">'+ox('science','과학중점 희망',f.science)+ox('pe','체육특성화 희망',f.pe)
+    var dft=defaultsOf(s);
+    h+='<div class="fields">'+ox('science','과학중점 희망',f.science,dft.sciWhy)+ox('pe','체육특성화 희망',f.pe,dft.peWhy)
       +'<label class="f">신청일 (양식 날짜)<input type="date" id="fDate" value="'+esc(f.date)+'"></label></div>'
       +'<div><div class="eyebrow" style="margin-bottom:8px">변경 신청 과목 · 최대 '+MAX_CHANGES+'건</div><div class="stack" id="chg" style="display:flex;flex-direction:column;gap:8px">'+f.changes.map(chgRow).join('')+'</div>'
       +'<button class="btn ghost" type="button" id="addChg" style="margin-top:6px"'+(f.changes.length>=MAX_CHANGES?' disabled':'')+'>+ 변경 과목 추가</button></div>'
@@ -684,8 +698,8 @@ function detailHtml(){
   }
   return h+'</div>';
 }
-function ox(name,label,val){
-  return '<div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500">'+label+'<span class="seg" role="radiogroup" aria-label="'+label+'">'
+function ox(name,label,val,hint){
+  return '<div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500">'+label+(hint?' <span class="muted" style="font-weight:400">· 기본: '+esc(hint)+'</span>':'')+'<span class="seg" role="radiogroup" aria-label="'+label+'">'
     +[['O','O'],['X','X'],['','비움']].map(function(v){return '<label><input type="radio" name="'+name+'" value="'+v[0]+'"'+(val===v[0]?' checked':'')+'>'+v[1]+'</label>'}).join('')+'</span></div>';
 }
 function chgRow(c,i){
