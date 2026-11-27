@@ -248,6 +248,56 @@ table.sheet td.chg,.chg-key{background:var(--done-weak);color:var(--done);font-w
 table.sheet tbody tr:hover td{background:var(--sunk)}
 table.sheet tbody tr:hover td.chg{background:var(--done-weak)}
 
+/* 크리스마스 장식 (귀엽게, 과하지 않게) */
+.xmas-scene{position:relative;display:flex;align-items:flex-end;gap:4px;margin:8px 0 0 2px;width:210px}
+.xmas-scene .tree{width:104px;height:auto}
+.xmas-scene .rudolph{width:66px;height:auto;margin-bottom:6px}
+.xmas-note{position:absolute;left:112px;top:-8px;font-family:var(--f-latin);font-style:italic;font-size:17px;color:#b0453a;letter-spacing:.02em;white-space:nowrap}
+@media (max-width:980px){.xmas-scene{display:none}}
+.tree .star{transform-box:fill-box;transform-origin:center;animation:twinkle 2.4s ease-in-out infinite}
+.tree .lights circle{animation:blink 2.2s ease-in-out infinite}
+.tree .lights circle:nth-child(2n){animation-delay:.7s}.tree .lights circle:nth-child(3n){animation-delay:1.4s}
+@keyframes twinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.15) rotate(8deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.rudolph .r-body{transform-origin:45px 118px;animation:sway 2.4s ease-in-out infinite}
+.rudolph .r-arm-r{transform-origin:70px 64px;animation:wave 1.2s ease-in-out infinite}
+.rudolph .r-arm-l{transform-origin:19px 64px;animation:wave2 1.2s ease-in-out infinite}
+body.music-on .rudolph .r-body{animation:dance 1.072s ease-in-out infinite}
+body.music-on .rudolph .r-arm-r,body.music-on .rudolph .r-arm-l{animation-duration:.536s}
+.r-glow{animation:glow 1.6s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes dance{0%,100%{transform:rotate(-8deg) translateY(0)}25%{transform:rotate(0) translateY(-6px)}50%{transform:rotate(8deg) translateY(0)}75%{transform:rotate(0) translateY(-6px)}}
+@keyframes wave{0%,100%{transform:rotate(0)}50%{transform:rotate(-22deg)}}
+@keyframes wave2{0%,100%{transform:rotate(0)}50%{transform:rotate(18deg)}}
+@keyframes glow{0%,100%{opacity:.2}50%{opacity:.6}}
+.sky-deco{position:absolute;left:0;right:0;top:0;height:46.5%;overflow:hidden;pointer-events:none}
+.sky-deco .moon{position:absolute;right:16%;top:14%;width:22px;height:22px;border-radius:50%;background:#fff8e3;box-shadow:0 0 14px 4px rgba(255,248,227,.7)}
+.sky-deco .tw{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;animation:blink 2.6s ease-in-out infinite}
+.sky-deco .sn{position:absolute;top:-6px;width:4px;height:4px;border-radius:50%;background:#fff;opacity:.85;animation:snow linear infinite}
+@keyframes snow{0%{transform:translate(0,-6px)}50%{transform:translate(6px,90px)}100%{transform:translate(-4px,190px);opacity:0}}
+.sky-deco .sleigh{position:absolute;top:30%;left:0;width:48%;animation:fly 18s linear infinite}
+.sky-deco .sl-bob{animation:bob 1.6s ease-in-out infinite}
+.sky-deco .fly-deer{transform-box:fill-box;transform-origin:center;animation:gallop .8s ease-in-out infinite}
+@keyframes fly{0%{transform:translateX(-120%)}100%{transform:translateX(230%)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes gallop{0%,100%{transform:rotate(0)}50%{transform:rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.xmas-scene *,.sky-deco *{animation:none!important}.sky-deco .sleigh{transform:translateX(60%)}}
+@media print{.xmas-scene,.sky-deco{display:none!important}}
+@media (max-width:640px){.arch{height:290px!important}.arch::before{top:42%}.sky-deco{height:42%}.sky-deco .sleigh{width:36%;top:22%}.sky-deco .moon{width:18px;height:18px;top:16%}}
+
+/* 음악 버튼 */
+.music-btn{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:25;
+  height:44px;min-width:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);
+  display:flex;align-items:center;gap:3px;cursor:pointer;box-shadow:0 6px 18px -8px rgba(60,45,30,.45);font-size:18px}
+.music-btn[aria-pressed="false"]{color:var(--ink-3)}
+.music-btn[aria-pressed="false"] span{text-decoration:line-through;text-decoration-thickness:1px}
+.music-btn i{display:inline-block;width:3px;height:12px;background:var(--ink);border-radius:2px;animation:eq 1.1s ease-in-out infinite;transform-origin:bottom}
+.music-btn i:nth-of-type(2){animation-delay:.25s}.music-btn i:nth-of-type(3){animation-delay:.5s}
+@keyframes eq{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.music-btn i{animation:none}}
+@media print{.music-btn{display:none!important}}
+@media (max-width:640px){body.authed .music-btn{bottom:calc(74px + env(safe-area-inset-bottom,0px));right:12px;height:38px;min-width:38px;padding:0 10px}}
+
 /* ───── 휴대폰 ───── */
 .mback{display:none}
 @media (max-width:640px){
@@ -259,7 +309,7 @@ table.sheet tbody tr:hover td.chg{background:var(--done-weak)}
   .title-col{padding:4px 0 0}
   .display{font-size:30px}
   .display br{display:none}
-  .arch{aspect-ratio:auto;height:230px;border-radius:120px 120px 0 0}
+  .arch{aspect-ratio:auto;height:290px;border-radius:120px 120px 0 0;background:linear-gradient(180deg,var(--sky) 0%,#e2e8e7 42%,var(--sand) 42%,#e4d6c2 100%)}
   .thanks{padding:0 18px 20px}.thanks .t1{font-size:18px}.thanks .t2{font-size:12.5px}
   body.authed .arch-col,body.authed .index-col .dial,.idx{display:none}
   body:not(.authed) .index-col{display:none}
@@ -363,10 +413,65 @@ table.sheet tbody tr:hover td.chg{background:var(--done-weak)}
 <header class="hero">
   <div class="index-col">
     <nav class="nav" role="tablist" aria-label="메뉴" id="nav"></nav>
+    <div class="xmas-scene" aria-hidden="true"><svg class="tree" viewBox="0 0 110 140" aria-hidden="true">
+  <rect x="48" y="110" width="14" height="16" rx="3" fill="#8a5a35"/>
+  <path d="M55 56 L97 108 Q55 117 13 108 Z" fill="#3e7357"/>
+  <path d="M55 34 L87 80 Q55 88 23 80 Z" fill="#4b8566"/>
+  <path d="M55 15 L77 53 Q55 59 33 53 Z" fill="#5a9874"/>
+  <path d="M33 66 Q56 78 80 64" stroke="#efe2c4" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M22 96 Q56 110 90 94" stroke="#efe2c4" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <g class="lights">
+    <circle cx="44" cy="45" r="3" fill="#e8402f"/><circle cx="64" cy="48" r="3" fill="#f2c14e"/>
+    <circle cx="36" cy="70" r="3" fill="#f2c14e"/><circle cx="56" cy="74" r="3" fill="#ffffff"/><circle cx="74" cy="68" r="3" fill="#e8402f"/>
+    <circle cx="28" cy="99" r="3" fill="#ffffff"/><circle cx="48" cy="104" r="3" fill="#e8402f"/><circle cx="68" cy="103" r="3" fill="#f2c14e"/><circle cx="86" cy="97" r="3" fill="#ffffff"/>
+  </g>
+  <path class="star" d="M55 2 L58.5 10 L67 10.5 L60.5 16 L62.6 24.5 L55 20 L47.4 24.5 L49.5 16 L43 10.5 L51.5 10 Z" fill="#f2c14e"/>
+  <rect x="18" y="116" width="20" height="16" rx="2" fill="#c0392b"/><rect x="26" y="116" width="4" height="16" fill="#f7f3ed"/><rect x="18" y="122" width="20" height="4" fill="#f7f3ed"/>
+  <rect x="70" y="119" width="18" height="13" rx="2" fill="#e8b84a"/><rect x="77" y="119" width="4" height="13" fill="#fff"/>
+</svg><svg class="rudolph" viewBox="0 0 90 122" aria-hidden="true"><g class="r-body">
+  <rect x="31" y="92" width="10" height="22" rx="5" fill="#8a5a35"/><rect x="49" y="92" width="10" height="22" rx="5" fill="#8a5a35"/>
+  <ellipse cx="36" cy="115" rx="8" ry="4" fill="#4a3226"/><ellipse cx="54" cy="115" rx="8" ry="4" fill="#4a3226"/>
+  <g class="r-arm-l"><rect x="15" y="60" width="9" height="24" rx="4.5" fill="#a86f45" transform="rotate(40 19 64)"/></g>
+  <g class="r-arm-r"><rect x="66" y="60" width="9" height="24" rx="4.5" fill="#a86f45" transform="rotate(-150 70 64)"/></g>
+  <ellipse cx="45" cy="80" rx="20" ry="22" fill="#a86f45"/><ellipse cx="45" cy="85" rx="12" ry="14" fill="#e4c39c"/>
+  <path d="M28 61 Q45 69 62 61 L62 67 Q45 75 28 67Z" fill="#c0392b"/><rect x="52" y="64" width="7" height="15" rx="3" fill="#c0392b"/>
+  <path d="M34 22 L27 6 M30 13 L21 10 M56 22 L63 6 M60 13 L69 10" stroke="#7a4e2d" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <ellipse cx="24" cy="31" rx="7" ry="4" fill="#a86f45" transform="rotate(-25 24 31)"/><ellipse cx="66" cy="31" rx="7" ry="4" fill="#a86f45" transform="rotate(25 66 31)"/>
+  <circle cx="45" cy="38" r="20" fill="#b97c4e"/><ellipse cx="45" cy="48" rx="13" ry="9" fill="#e4c39c"/>
+  <circle cx="37" cy="35" r="3.4" fill="#2a2521"/><circle cx="53" cy="35" r="3.4" fill="#2a2521"/>
+  <circle cx="38.2" cy="33.8" r="1.1" fill="#fff"/><circle cx="54.2" cy="33.8" r="1.1" fill="#fff"/>
+  <ellipse cx="31" cy="44" rx="3.5" ry="2" fill="#f0a3a3" opacity=".75"/><ellipse cx="59" cy="44" rx="3.5" ry="2" fill="#f0a3a3" opacity=".75"/>
+  <path d="M41 53 Q45 56 49 53" stroke="#5a3a26" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <circle class="r-glow" cx="45" cy="45" r="9" fill="#ff6b5e" opacity=".35"/>
+  <circle cx="45" cy="45" r="5.5" fill="#e8402f"/><circle cx="43.4" cy="43.4" r="1.6" fill="#fff" opacity=".85"/>
+</g></svg><p class="xmas-note">Merry Christmas</p></div>
     <div class="dial" id="dial" aria-label="접수 완료 진행률"></div>
   </div>
   <div class="arch-col">
     <div class="arch">
+      <div class="sky-deco" aria-hidden="true"><span class="moon"></span><i class="tw" style="left:14%;top:12%;animation-delay:0.0s"></i><i class="tw" style="left:28%;top:30%;animation-delay:1.1s"></i><i class="tw" style="left:62%;top:10%;animation-delay:0.6s"></i><i class="tw" style="left:78%;top:26%;animation-delay:1.7s"></i><i class="tw" style="left:46%;top:22%;animation-delay:2.2s"></i><i class="tw" style="left:86%;top:40%;animation-delay:0.3s"></i><b class="sn" style="left:8%;animation-delay:0.0s;animation-duration:9s"></b><b class="sn" style="left:22%;animation-delay:3.2s;animation-duration:11s"></b><b class="sn" style="left:35%;animation-delay:1.4s;animation-duration:10s"></b><b class="sn" style="left:50%;animation-delay:5.0s;animation-duration:12s"></b><b class="sn" style="left:63%;animation-delay:2.2s;animation-duration:9s"></b><b class="sn" style="left:74%;animation-delay:6.1s;animation-duration:11s"></b><b class="sn" style="left:88%;animation-delay:3.8s;animation-duration:10s"></b><b class="sn" style="left:16%;animation-delay:7.3s;animation-duration:12s"></b><b class="sn" style="left:57%;animation-delay:8.4s;animation-duration:10s"></b><b class="sn" style="left:92%;animation-delay:0.9s;animation-duration:11s"></b><svg class="sleigh" viewBox="0 0 210 74" aria-hidden="true"><g class="sl-bob">
+  <path d="M86 42 Q120 30 150 40" stroke="#8a5a35" stroke-width="1.4" fill="none"/>
+  <g class="fly-deer">
+    <ellipse cx="166" cy="42" rx="17" ry="9" fill="#a86f45"/>
+    <path d="M153 47 l-9 9 M158 49 l-5 11 M174 48 l6 10 M179 46 l10 7" stroke="#8a5a35" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M180 34 Q186 30 190 24" stroke="#a86f45" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <circle cx="193" cy="21" r="8.5" fill="#b97c4e"/>
+    <path d="M190 14 L186 4 M188 9 L182 7 M196 14 L199 4 M197 9 L203 8" stroke="#7a4e2d" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="195" cy="20" r="1.6" fill="#2a2521"/>
+    <circle class="r-glow" cx="201.5" cy="23" r="5" fill="#ff6b5e" opacity=".35"/><circle cx="201.5" cy="23" r="3" fill="#e8402f"/>
+    <path d="M160 37 Q166 33 172 37" stroke="#c0392b" stroke-width="3" fill="none"/>
+  </g>
+  <ellipse cx="48" cy="30" rx="16" ry="13" fill="#8a6a4a"/><path d="M40 19 q8 -6 16 0" stroke="#6b4f35" stroke-width="2" fill="none"/>
+  <circle cx="70" cy="30" r="12" fill="#d23b30"/>
+  <circle cx="70" cy="15" r="8" fill="#f6d5bd"/>
+  <path d="M62 17 Q70 30 78 17 Q74 22 70 22 Q66 22 62 17Z" fill="#fff"/>
+  <path d="M61 13 Q70 -2 82 10 Q76 9 79 13Z" fill="#d23b30"/><rect x="60" y="11" width="20" height="4" rx="2" fill="#fff"/><circle cx="83" cy="10" r="3" fill="#fff"/>
+  <circle cx="67" cy="14" r="1" fill="#2a2521"/><circle cx="73" cy="14" r="1" fill="#2a2521"/><ellipse cx="70" cy="17.5" rx="1.6" ry="1.2" fill="#e8908a"/>
+  <path d="M26 36 L92 36 Q96 36 94 44 Q90 56 70 56 L36 56 Q26 56 24 46 Z" fill="#c0392b"/>
+  <path d="M30 42 L88 42" stroke="#f2c14e" stroke-width="2"/>
+  <path d="M18 62 Q24 66 40 64 L96 64 Q104 64 106 56" stroke="#e8b84a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M40 56 L40 64 M80 56 L80 64" stroke="#e8b84a" stroke-width="2.5"/>
+</g></svg></div>
       <div class="thanks">
         <p class="t1">선생님,<br>늘 고맙습니다.</p>
         <p class="t2">학생 한 명 한 명의 진로를 함께 고민하고<br>보호자와 마음을 잇는 수고 덕분에<br>아이들의 내일이 조금 더 단단해집니다.</p>
@@ -1049,6 +1154,123 @@ function printPapers(list){
   var p=$('#printArea');p.innerHTML=list.map(function(r){return '<div class="paper-doc">'+paperHtml(r)+'</div>'}).join('');
   setTimeout(function(){window.print()},150);
 }
+
+/* ════════ 배경 음악: 「징글벨」(1857, 저작권 만료) 재즈 스윙 편곡 — Web Audio로 직접 연주, 음원 파일 없음 ════════
+   비브라폰 멜로디 · 로즈 피아노 화음 · 워킹 베이스 · 브러시 드럼 · 썰매 방울 · 리버브
+   브라우저는 사람이 한 번 누르기 전에는 소리를 막으므로, 첫 클릭·입력 때 바로 시작합니다. */
+var Music=(function(){
+  var ac=null,out=null,dry=null,wet=null,on=false,timer=null,loopStart=0,loopN=0,noiseBuf=null;
+  var BPM=112,B=60/BPM,BAR=4*B;
+  function hz(m){return 440*Math.pow(2,(m-69)/12)}
+  function sw(pos){var f=pos-Math.floor(pos);return Math.abs(f-0.5)<1e-6?pos+1/6:pos} // 스윙: 뒷박을 3연음 뒤로
+  // 멜로디(C장조) [음, 박]
+  var A1=[[76,1],[76,1],[76,2],[76,1],[76,1],[76,2],[76,1],[79,1],[72,1.5],[74,.5],[76,4]];
+  var MEL=A1.concat([[77,1],[77,1],[77,1.5],[77,.5],[77,1],[76,1],[76,1],[76,.5],[76,.5],[76,1],[74,1],[74,1],[76,1],[74,2],[79,2]])
+    .concat(A1).concat([[77,1],[77,1],[77,1],[77,1],[77,1],[76,1],[76,1],[76,.5],[76,.5],[79,1],[79,1],[77,1],[74,1],[72,4]]);
+  // 마디별 화음(반 마디씩)
+  var Q={M7:[4,11,14],D7:[4,10,14],m7:[3,10,14],'6':[4,9,14],o7:[3,6,9]};
+  function c(root,q){return {r:root,q:q}}
+  var C6=c(36,'6'),CM=c(36,'M7'),A7=c(45,'D7'),Dm=c(38,'m7'),G7=c(43,'D7'),FM=c(41,'M7'),D7=c(38,'D7'),Fo=c(42,'o7');
+  var CH=[[C6,C6],[CM,A7],[Dm,G7],[CM,A7],[FM,FM],[C6,A7],[D7,D7],[Dm,G7],
+          [C6,C6],[CM,A7],[Dm,G7],[CM,A7],[FM,Fo],[C6,A7],[Dm,G7],[C6,G7]];
+  var LOOP=CH.length*BAR;
+
+  function env(g,t,peak,att,dec){g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+att);g.gain.exponentialRampToValueAtTime(0.0001,t+att+dec)}
+  function vib(t,m,vol,dur){ // 비브라폰: 사인 + 떨림
+    var g=ac.createGain(),trem=ac.createGain(),lfo=ac.createOscillator(),lg=ac.createGain();
+    lfo.frequency.value=5.2;lg.gain.value=0.35;lfo.connect(lg);lg.connect(trem.gain);trem.gain.value=0.75;
+    g.connect(trem);trem.connect(dry);trem.connect(wet);env(g,t,vol,0.006,dur);
+    [[1,1],[4,.12],[10,.02]].forEach(function(p){var o=ac.createOscillator(),pg=ac.createGain();o.type='sine';o.frequency.value=hz(m)*p[0];pg.gain.value=p[1];o.connect(pg);pg.connect(g);o.start(t);o.stop(t+dur+.1)});
+    lfo.start(t);lfo.stop(t+dur+.1);
+  }
+  function rhodes(t,m,vol,dur){ // 로즈 피아노
+    var g=ac.createGain();g.connect(dry);g.connect(wet);env(g,t,vol,0.01,dur);
+    [[1,1,'sine'],[2,.18,'sine'],[1,.12,'triangle']].forEach(function(p){var o=ac.createOscillator(),pg=ac.createGain();o.type=p[2];o.frequency.value=hz(m)*p[0];o.detune.value=p[2]==='triangle'?6:0;pg.gain.value=p[1];o.connect(pg);pg.connect(g);o.start(t);o.stop(t+dur+.1)});
+  }
+  function bass(t,m,vol){ // 콘트라베이스 느낌
+    var g=ac.createGain(),lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;g.connect(lp);lp.connect(dry);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.012);g.gain.exponentialRampToValueAtTime(vol*0.35,t+0.18);g.gain.exponentialRampToValueAtTime(0.0001,t+B*0.95);
+    var o=ac.createOscillator();o.type='triangle';o.frequency.value=hz(m);o.connect(g);o.start(t);o.stop(t+B);
+  }
+  function noise(t,vol,dur,type,freq,q){
+    var s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf;f.type=type;f.frequency.value=freq;f.Q.value=q||0.7;
+    s.connect(f);f.connect(g);g.connect(dry);g.connect(wet);env(g,t,vol,0.004,dur);s.start(t,Math.random()*0.5);s.stop(t+dur+.05);
+  }
+  function brushRide(t,acc){noise(t,acc?0.05:0.03,acc?0.22:0.12,'bandpass',7200,0.9)}
+  function snareBrush(t){noise(t,0.035,0.28,'bandpass',2600,0.6)}
+  function sleigh(t){noise(t,0.022,0.18,'highpass',9000,0.5);noise(t+0.06,0.015,0.12,'highpass',10500,0.5)}
+
+  function schedule(t0,n){
+    // 멜로디 (두 번째 바퀴부터는 한 옥타브 위 장식음 조금)
+    var pos=0;MEL.forEach(function(x){if(x[0]!=null)vib(t0+sw(pos)*B,x[0]+(n%2?12:0)*0,0.14,Math.min(2.2,x[1]*B+0.9));pos+=x[1]});
+    CH.forEach(function(bar,i){
+      var bt=t0+i*BAR;
+      bar.forEach(function(ch,h){
+        var ht=bt+h*2*B,next=(h===0?bar[1]:(CH[i+1]||CH[0])[0]);
+        // 로즈 화음: 2박과 4박 뒤쪽(스윙)에 콤핑
+        var notes=Q[ch.q].map(function(iv){var m=ch.r+24+iv;while(m>71)m-=12;while(m<55)m+=12;return m});
+        var hit=ht+(h===0?sw(1.5):sw(0.5))*B;
+        notes.forEach(function(m){rhodes(hit,m,0.045,1.3)});
+        // 워킹 베이스: 근음 → 다음 화음으로 반음 접근
+        var appr=next.r===ch.r?ch.r+7:next.r-1;while(appr>47)appr-=12;while(appr<33)appr+=12;
+        bass(ht,ch.r,0.32);bass(ht+B,appr,0.26);
+      });
+      // 브러시 드럼: 라이드 스윙 + 2·4박 스네어 브러시, 썰매 방울
+      [0,1,1+2/3,2,3,3+2/3].forEach(function(p){brushRide(bt+p*B,p===1||p===3)});
+      snareBrush(bt+B);snareBrush(bt+3*B);
+      if(i%2===1)[0,1,2,3].forEach(function(p){sleigh(bt+p*B)});
+    });
+  }
+  function loop(){
+    if(!on)return;
+    schedule(loopStart,loopN++);loopStart+=LOOP;
+    timer=setTimeout(loop,Math.max(200,(loopStart-ac.currentTime-2)*1000));
+  }
+  function ensure(){
+    if(ac)return true;
+    var C=window.AudioContext||window.webkitAudioContext;if(!C)return false;
+    ac=new C();
+    out=ac.createGain();out.gain.value=0.0001;out.connect(ac.destination);
+    dry=ac.createGain();dry.gain.value=0.9;dry.connect(out);
+    // 리버브(짧게 감쇠하는 잡음으로 만든 공간)
+    var len=Math.floor(ac.sampleRate*2.4),ir=ac.createBuffer(2,len,ac.sampleRate);
+    for(var ch=0;ch<2;ch++){var d=ir.getChannelData(ch);for(var i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6)}
+    var conv=ac.createConvolver();conv.buffer=ir;wet=ac.createGain();wet.gain.value=0.32;wet.connect(conv);conv.connect(out);
+    noiseBuf=ac.createBuffer(1,ac.sampleRate,ac.sampleRate);var nd=noiseBuf.getChannelData(0);for(var k=0;k<nd.length;k++)nd[k]=Math.random()*2-1;
+    return true;
+  }
+  function start(){
+    if(!ensure())return Promise.resolve(false);
+    return ac.resume().then(function(){
+      if(ac.state!=='running')return false;
+      if(!on){on=true;var t=ac.currentTime;out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(0.0001,t);out.gain.exponentialRampToValueAtTime(0.5,t+1.5);
+        loopStart=t+0.2;loopN=0;loop()}
+      return true;
+    }).catch(function(){return false});
+  }
+  function stop(){
+    on=false;clearTimeout(timer);
+    if(ac){var t=ac.currentTime;out.gain.cancelScheduledValues(t);out.gain.setValueAtTime(Math.max(out.gain.value,0.0002),t);out.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+      setTimeout(function(){if(!on&&ac)ac.suspend()},600)}
+  }
+  return {start:start,stop:stop,playing:function(){return on}};
+})();
+(function(){
+  var btn=document.createElement('button');btn.type='button';btn.className='music-btn';document.body.appendChild(btn);
+  function paint(){var p=Music.playing();document.body.classList.toggle('music-on',p);btn.setAttribute('aria-pressed',p);btn.setAttribute('aria-label',p?'음악 끄기':'음악 켜기');btn.title=p?'크리스마스 재즈 끄기':'크리스마스 재즈 켜기';
+    btn.innerHTML='<span aria-hidden="true">♪</span>'+(p?'<i></i><i></i><i></i>':'<small>음악</small>')}
+  paint();
+  btn.addEventListener('click',function(e){e.stopPropagation();
+    if(Music.playing()){Music.stop();lsSet('sc.music','off');paint()}
+    else{lsSet('sc.music','on');Music.start().then(paint)}});
+  if(lsGet('sc.music','on')==='off')return;
+  // 열자마자 시도하고(허용된 브라우저), 막히면 첫 클릭·입력 때 시작
+  Music.start().then(function(ok){paint();if(ok)return;
+    var evs=['pointerdown','keydown','touchstart'];
+    var go=function(){Music.start().then(function(r){paint();if(r)evs.forEach(function(ev){document.removeEventListener(ev,go,true)})})};
+    evs.forEach(function(ev){document.addEventListener(ev,go,true)});
+  });
+})();
 
 /* ════════ 시작 ════════ */
 $('#brandSub').textContent='천안신당고등학교 교육과정부'+(CFG.auth?' · '+P.label:'');
